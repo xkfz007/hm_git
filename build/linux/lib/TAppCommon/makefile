@@ -2,13 +2,8 @@
 CONFIG 			= LIBRARY
 
 # set pathes to the correct directories
-<<<<<<< HEAD
 SRC_DIR			= ../../../../source/Lib/TAppCommon
 INC_DIR			= ../../../../source/Lib
-=======
-SRC_DIR			= ../../../../source/App/TAppCommon
-INC_DIR			= ../../../../source/App/TAppCommon
->>>>>>> upstream/master
 LIB_DIR			= ../../../../lib
 BIN_DIR			= ../../../../bin
 
@@ -21,7 +16,6 @@ SRC_DIR4		=
 USER_INC_DIRS	= -I$(SRC_DIR)
 USER_LIB_DIRS	=
 
-<<<<<<< HEAD
 ifeq ($(HIGHBITDEPTH), 1)
 HBD=HighBitDepth
 else
@@ -33,13 +27,6 @@ OBJ_DIR			= ./objects$(HBD)
 
 # the library name
 PRJ_NAME	 	= TAppCommon$(HBD)
-=======
-# intermediate directory for object files
-OBJ_DIR			= ./objects
-
-# the library name
-PRJ_NAME	 	= TAppCommon
->>>>>>> upstream/master
 
 # version information
 MAJOR_VER		= 0

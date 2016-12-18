@@ -12,12 +12,8 @@ endif
 # executables used
 #########################################################
 
-<<<<<<< HEAD
 CPP     = g++
 CC      = gcc
-=======
-CPP   	= g++
->>>>>>> upstream/master
 AR    	= ar
 LD    	= $(CPP)
 ASM		= nasm
@@ -51,11 +47,7 @@ endif
 
 # default cpp flags for all configurations
 #CPPFLAGS          = -Wall -fPIC $(DEFS) -I$(CURDIR)/$(INC_DIR) $(USER_INC_DIRS)
-<<<<<<< HEAD
 CPPFLAGS          = -fPIC $(DEFS) -I$(CURDIR)/$(INC_DIR) $(USER_INC_DIRS) -Wall -Wshadow -Wno-sign-compare -Werror
-=======
-CPPFLAGS          = -fPIC $(DEFS) -I$(CURDIR)/$(INC_DIR) $(USER_INC_DIRS) -Wall -Wshadow -Wno-reorder -Wno-sign-compare
->>>>>>> upstream/master
 
 ########## 
 # enforce 32-bit build : 1=yes, 0=no
@@ -66,23 +58,16 @@ CPPFLAGS+=-m32
 endif
 ##########
 
-<<<<<<< HEAD
 ifeq ($(HIGHBITDEPTH), 1)
 CPPFLAGS+="-DRExt__HIGH_BIT_DEPTH_SUPPORT=1"
 endif
 
-=======
->>>>>>> upstream/master
 #
 # debug cpp flags
 DEBUG_CPPFLAGS    = -g  -D_DEBUG
 #
 # release cpp
-<<<<<<< HEAD
 RELEASE_CPPFLAGS  =  -O3 -Wuninitialized
-=======
-RELEASE_CPPFLAGS  =  -O3 -ffloat-store -DNDEBUG -Wuninitialized
->>>>>>> upstream/master
 
 
 #########################################################
@@ -227,7 +212,6 @@ define COMPILE_AND_DEPEND_DEBUG
                 -e '/^$$/ d' -e 's/$$/ :/' < $(OBJ_DIR)/$*.d.d >> $(OBJ_DIR)/$*.d.P; \
                 rm -f $(OBJ_DIR)/$*.d.d
 endef
-<<<<<<< HEAD
 define COMPILE_AND_DEPEND_RELEASE_C
         $(CC) -c -MMD -MF $(OBJ_DIR)/$*.r.d -MT $(OBJ_DIR)/$*.r.o $(CPPFLAGS) $(RELEASE_CPPFLAGS) -o $@ $(CURDIR)/$<
         @cp $(OBJ_DIR)/$*.r.d $(OBJ_DIR)/$*.r.P; \
@@ -242,8 +226,6 @@ define COMPILE_AND_DEPEND_DEBUG_C
                 -e '/^$$/ d' -e 's/$$/ :/' < $(OBJ_DIR)/$*.d.d >> $(OBJ_DIR)/$*.d.P; \
                 rm -f $(OBJ_DIR)/$*.d.d
 endef
-=======
->>>>>>> upstream/master
 
 # create release objects
 $(OBJ_DIR)/%.r.o: $(SRC_DIR)/%.cpp
@@ -285,7 +267,6 @@ $(OBJ_DIR)/%.r.o: $(SRC_DIR4)/%.cpp
 $(OBJ_DIR)/%.d.o: $(SRC_DIR4)/%.cpp
 	$(COMPILE_AND_DEPEND_DEBUG)
 
-<<<<<<< HEAD
 # create release objects
 $(OBJ_DIR)/%.r.o: $(SRC_DIR)/%.c
 	$(COMPILE_AND_DEPEND_RELEASE_C)
@@ -326,8 +307,6 @@ $(OBJ_DIR)/%.r.o: $(SRC_DIR4)/%.c
 $(OBJ_DIR)/%.d.o: $(SRC_DIR4)/%.c
 	$(COMPILE_AND_DEPEND_DEBUG_C)
 
-=======
->>>>>>> upstream/master
 
 #########################################################
 # directory settings

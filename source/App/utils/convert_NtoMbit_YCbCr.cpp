@@ -3,7 +3,7 @@
  * and contributor rights, including patent rights, and no such rights are
  * granted under this license.
  *
- * Copyright (c) 2010-2015, ITU/ISO/IEC
+ * Copyright (c) 2010-2016, ITU/ISO/IEC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -104,12 +104,12 @@ Int main(Int argc, const char** argv)
   input.skipFrames(num_frames_skip, width, height, chromaFormatIDC);
 
   TComPicYuv frame;
-  frame.create( width, height, chromaFormatIDC, width, height, 0, false);
+  frame.createWithoutCUInfo( width, height, chromaFormatIDC);
 
   Int pad[2] = {0, 0};
 
   TComPicYuv cPicYuvTrueOrg;
-  cPicYuvTrueOrg.create( width, height, chromaFormatIDC, width, height, 0, false );
+  cPicYuvTrueOrg.createWithoutCUInfo( width, height, chromaFormatIDC );
 
   UInt num_frames_processed = 0;
   while (!input.isEof())

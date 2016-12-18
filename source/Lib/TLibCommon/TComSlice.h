@@ -1,10 +1,9 @@
-<<<<<<< HEAD
 /* The copyright in this software is being made available under the BSD
  * License, included below. This software may be subject to other third party
  * and contributor rights, including patent rights, and no such rights are
  * granted under this license.
  *
- * Copyright (c) 2010-2015, ITU/ISO/IEC
+ * Copyright (c) 2010-2016, ITU/ISO/IEC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -171,7 +170,7 @@ public:
 
   Void       checkDcOfMatrix();
   Void       processRefMatrix(UInt sizeId, UInt listId , UInt refListId );
-  Bool       xParseScalingList(Char* pchFile);
+  Bool       xParseScalingList(const std::string &fileName);
   Void       setDefaultScalingList();
   Bool       checkDefaultScalingList();
 
@@ -799,7 +798,7 @@ private:
 
   TComRPSList      m_RPSList;
   Bool             m_bLongTermRefsPresent;
-  Bool             m_TMVPFlagsPresent;
+  Bool             m_SPSTemporalMVPEnabledFlag;
   Int              m_numReorderPics[MAX_TLAYER];
 
   // Tool list
@@ -833,7 +832,7 @@ private:
   Bool             m_scalingListPresentFlag;
   TComScalingList  m_scalingList;
   UInt             m_uiMaxDecPicBuffering[MAX_TLAYER];
-  UInt             m_uiMaxLatencyIncrease[MAX_TLAYER];  // Really max latency increase plus 1 (value 0 expresses no limit)
+  UInt             m_uiMaxLatencyIncreasePlus1[MAX_TLAYER];
 
   Bool             m_useStrongIntraSmoothing;
 
@@ -923,8 +922,8 @@ public:
   TComRPSList*           getRPSList()                                                                    { return &m_RPSList;                                                   }
   Bool                   getLongTermRefsPresent() const                                                  { return m_bLongTermRefsPresent;                                       }
   Void                   setLongTermRefsPresent(Bool b)                                                  { m_bLongTermRefsPresent=b;                                            }
-  Bool                   getTMVPFlagsPresent() const                                                     { return m_TMVPFlagsPresent;                                           }
-  Void                   setTMVPFlagsPresent(Bool b)                                                     { m_TMVPFlagsPresent=b;                                                }
+  Bool                   getSPSTemporalMVPEnabledFlag() const                                            { return m_SPSTemporalMVPEnabledFlag;                                  }
+  Void                   setSPSTemporalMVPEnabledFlag(Bool b)                                            { m_SPSTemporalMVPEnabledFlag=b;                                       }
   // physical transform
   Void                   setMaxTrSize( UInt u )                                                          { m_uiMaxTrSize = u;                                                   }
   UInt                   getMaxTrSize() const                                                            { return  m_uiMaxTrSize;                                               }
@@ -960,13 +959,12 @@ public:
   Void                   setScalingListFlag( Bool b )                                                    { m_scalingListEnabledFlag  = b;                                       }
   Bool                   getScalingListPresentFlag() const                                               { return m_scalingListPresentFlag;                                     }
   Void                   setScalingListPresentFlag( Bool b )                                             { m_scalingListPresentFlag  = b;                                       }
-  Void                   setScalingList( TComScalingList *scalingList);
   TComScalingList&       getScalingList()                                                                { return m_scalingList;                                                }
   const TComScalingList& getScalingList() const                                                          { return m_scalingList;                                                }
   UInt                   getMaxDecPicBuffering(UInt tlayer) const                                        { return m_uiMaxDecPicBuffering[tlayer];                               }
   Void                   setMaxDecPicBuffering( UInt ui, UInt tlayer )                                   { assert(tlayer < MAX_TLAYER); m_uiMaxDecPicBuffering[tlayer] = ui;    }
-  UInt                   getMaxLatencyIncrease(UInt tlayer) const                                        { return m_uiMaxLatencyIncrease[tlayer];                               }
-  Void                   setMaxLatencyIncrease( UInt ui , UInt tlayer)                                   { m_uiMaxLatencyIncrease[tlayer] = ui;                                 }
+  UInt                   getMaxLatencyIncreasePlus1(UInt tlayer) const                                   { return m_uiMaxLatencyIncreasePlus1[tlayer];                          }
+  Void                   setMaxLatencyIncreasePlus1( UInt ui , UInt tlayer)                              { m_uiMaxLatencyIncreasePlus1[tlayer] = ui;                            }
 
   Void                   setUseStrongIntraSmoothing(Bool bVal)                                           { m_useStrongIntraSmoothing = bVal;                                    }
   Bool                   getUseStrongIntraSmoothing() const                                              { return m_useStrongIntraSmoothing;                                    }
@@ -980,31 +978,6 @@ public:
 
   const TComSPSRExt&     getSpsRangeExtension() const                                                    { return m_spsRangeExtension;                                          }
   TComSPSRExt&           getSpsRangeExtension()                                                          { return m_spsRangeExtension;                                          }
-
-  // Sequence parameter set range extension syntax
-  // WAS: getUseResidualRotation and setUseResidualRotation
-  // Now getSpsRangeExtension().getTransformSkipRotationEnabledFlag and getSpsRangeExtension().setTransformSkipRotationEnabledFlag
-
-  // WAS: getUseSingleSignificanceMapContext and setUseSingleSignificanceMapContext
-  // Now: getSpsRangeExtension().getTransformSkipContextEnabledFlag and getSpsRangeExtension().setTransformSkipContextEnabledFlag
-
-  // WAS: getUseResidualDPCM and setUseResidualDPCM
-  // Now: getSpsRangeExtension().getRdpcmEnabledFlag and getSpsRangeExtension().setRdpcmEnabledFlag and
-
-  // WAS: getUseExtendedPrecision and setUseExtendedPrecision
-  // Now: getSpsRangeExtension().getExtendedPrecisionProcessingFlag and getSpsRangeExtension().setExtendedPrecisionProcessingFlag
-
-  // WAS: getDisableIntraReferenceSmoothing and setDisableIntraReferenceSmoothing
-  // Now: getSpsRangeExtension().getIntraSmoothingDisabledFlag and getSpsRangeExtension().setIntraSmoothingDisabledFlag
-
-  // WAS: getUseHighPrecisionPredictionWeighting and setUseHighPrecisionPredictionWeighting
-  // Now: getSpsRangeExtension().getHighPrecisionOffsetsEnabledFlag and getSpsRangeExtension().setHighPrecisionOffsetsEnabledFlag
-
-  // WAS: getUseGolombRiceParameterAdaptation and setUseGolombRiceParameterAdaptation
-  // Now: getSpsRangeExtension().getPersistentRiceAdaptationEnabledFlag and getSpsRangeExtension().setPersistentRiceAdaptationEnabledFlag
-
-  // WAS: getAlignCABACBeforeBypass and setAlignCABACBeforeBypass
-  // Now: getSpsRangeExtension().getCabacBypassAlignmentEnabledFlag and getSpsRangeExtension().setCabacBypassAlignmentEnabledFlag
 };
 
 
@@ -1021,9 +994,6 @@ private:
 public:
           TComRefPicListModification();
   virtual ~TComRefPicListModification();
-
-  Void    create();
-  Void    destroy();
 
   Bool    getRefPicListModificationFlagL0() const        { return m_refPicListModificationFlagL0;                                  }
   Void    setRefPicListModificationFlagL0(Bool flag)     { m_refPicListModificationFlagL0 = flag;                                  }
@@ -1121,7 +1091,7 @@ private:
   Bool             m_bUseWeightPred;                    //!< Use of Weighting Prediction (P_SLICE)
   Bool             m_useWeightedBiPred;                 //!< Use of Weighting Bi-Prediction (B_SLICE)
   Bool             m_OutputFlagPresentFlag;             //!< Indicates the presence of output_flag in slice header
-  Bool             m_TransquantBypassEnableFlag;        //!< Indicates presence of cu_transquant_bypass_flag in CUs.
+  Bool             m_TransquantBypassEnabledFlag;       //!< Indicates presence of cu_transquant_bypass_flag in CUs.
   Bool             m_useTransformSkip;
   Bool             m_dependentSliceSegmentsEnabledFlag; //!< Indicates the presence of dependent slices
   Bool             m_tilesEnabledFlag;                  //!< Indicates the presence of tiles
@@ -1134,7 +1104,7 @@ private:
   std::vector<Int> m_tileColumnWidth;
   std::vector<Int> m_tileRowHeight;
 
-  Bool             m_signHideFlag;
+  Bool             m_signDataHidingEnabledFlag;
 
   Bool             m_cabacInitPresentFlag;
 
@@ -1142,7 +1112,7 @@ private:
   Bool             m_loopFilterAcrossSlicesEnabledFlag;
   Bool             m_deblockingFilterControlPresentFlag;
   Bool             m_deblockingFilterOverrideEnabledFlag;
-  Bool             m_picDisableDeblockingFilterFlag;
+  Bool             m_ppsDeblockingFilterDisabledFlag;
   Int              m_deblockingFilterBetaOffsetDiv2;    //< beta offset for deblocking filter
   Int              m_deblockingFilterTcOffsetDiv2;      //< tc offset for deblocking filter
   Bool             m_scalingListPresentFlag;
@@ -1206,8 +1176,8 @@ public:
 
   Void                   setOutputFlagPresentFlag( Bool b )                               { m_OutputFlagPresentFlag = b;                  }
   Bool                   getOutputFlagPresentFlag() const                                 { return m_OutputFlagPresentFlag;               }
-  Void                   setTransquantBypassEnableFlag( Bool b )                          { m_TransquantBypassEnableFlag = b;             }
-  Bool                   getTransquantBypassEnableFlag() const                            { return m_TransquantBypassEnableFlag;          }
+  Void                   setTransquantBypassEnabledFlag( Bool b )                         { m_TransquantBypassEnabledFlag = b;            }
+  Bool                   getTransquantBypassEnabledFlag() const                           { return m_TransquantBypassEnabledFlag;         }
 
   Bool                   getUseTransformSkip() const                                      { return m_useTransformSkip;                    }
   Void                   setUseTransformSkip( Bool b )                                    { m_useTransformSkip  = b;                      }
@@ -1232,8 +1202,8 @@ public:
   Void                   setTileRowHeight(const std::vector<Int>& rowHeight)              { m_tileRowHeight = rowHeight;                  }
   UInt                   getTileRowHeight(UInt rowIdx) const                              { return m_tileRowHeight[rowIdx];               }
 
-  Void                   setSignHideFlag( Bool signHideFlag )                             { m_signHideFlag = signHideFlag;                }
-  Bool                   getSignHideFlag() const                                          { return m_signHideFlag;                        }
+  Void                   setSignDataHidingEnabledFlag( Bool b )                           { m_signDataHidingEnabledFlag = b;              }
+  Bool                   getSignDataHidingEnabledFlag() const                             { return m_signDataHidingEnabledFlag;           }
 
   Void                   setCabacInitPresentFlag( Bool flag )                             { m_cabacInitPresentFlag = flag;                }
   Bool                   getCabacInitPresentFlag() const                                  { return m_cabacInitPresentFlag;                }
@@ -1241,8 +1211,8 @@ public:
   Bool                   getDeblockingFilterControlPresentFlag() const                    { return m_deblockingFilterControlPresentFlag;  }
   Void                   setDeblockingFilterOverrideEnabledFlag( Bool val )               { m_deblockingFilterOverrideEnabledFlag = val;  }
   Bool                   getDeblockingFilterOverrideEnabledFlag() const                   { return m_deblockingFilterOverrideEnabledFlag; }
-  Void                   setPicDisableDeblockingFilterFlag(Bool val)                      { m_picDisableDeblockingFilterFlag = val;       } //!< set offset for deblocking filter disabled
-  Bool                   getPicDisableDeblockingFilterFlag() const                        { return m_picDisableDeblockingFilterFlag;      } //!< get offset for deblocking filter disabled
+  Void                   setPPSDeblockingFilterDisabledFlag(Bool val)                     { m_ppsDeblockingFilterDisabledFlag = val;      } //!< set offset for deblocking filter disabled
+  Bool                   getPPSDeblockingFilterDisabledFlag() const                       { return m_ppsDeblockingFilterDisabledFlag;     } //!< get offset for deblocking filter disabled
   Void                   setDeblockingFilterBetaOffsetDiv2(Int val)                       { m_deblockingFilterBetaOffsetDiv2 = val;       } //!< set beta offset for deblocking filter
   Int                    getDeblockingFilterBetaOffsetDiv2() const                        { return m_deblockingFilterBetaOffsetDiv2;      } //!< get beta offset for deblocking filter
   Void                   setDeblockingFilterTcOffsetDiv2(Int val)                         { m_deblockingFilterTcOffsetDiv2 = val;         } //!< set tc offset for deblocking filter
@@ -1264,28 +1234,6 @@ public:
 
   const TComPPSRExt&     getPpsRangeExtension() const                                     { return m_ppsRangeExtension;                   }
   TComPPSRExt&           getPpsRangeExtension()                                           { return m_ppsRangeExtension;                   }
-
-  // WAS: getTransformSkipLog2MaxSize and setTransformSkipLog2MaxSize
-  // Now: getPpsRangeExtension().getLog2MaxTransformSkipBlockSize and getPpsRangeExtension().setLog2MaxTransformSkipBlockSize
-
-  // WAS: getUseCrossComponentPrediction and setUseCrossComponentPrediction
-  // Now: getPpsRangeExtension().getCrossComponentPredictionEnabledFlag and getPpsRangeExtension().setCrossComponentPredictionEnabledFlag
-
-  // WAS: clearChromaQpAdjTable
-  // Now: getPpsRangeExtension().clearChromaQpOffsetList
-
-  // WAS: getMaxCuChromaQpAdjDepth and setMaxCuChromaQpAdjDepth
-  // Now: getPpsRangeExtension().getDiffCuChromaQpOffsetDepth and getPpsRangeExtension().setDiffCuChromaQpOffsetDepth
-
-  // WAS: getChromaQpAdjTableSize
-  // Now: getPpsRangeExtension().getChromaQpOffsetListLen
-
-  // WAS: getChromaQpAdjTableAt and setChromaQpAdjTableAt
-  // Now: getPpsRangeExtension().getChromaQpOffsetListEntry and getPpsRangeExtension().setChromaQpOffsetListEntry
-
-  // WAS: getSaoOffsetBitShift and setSaoOffsetBitShift
-  // Now: getPpsRangeExtension().getLog2SaoOffsetScale and getPpsRangeExtension().setLog2SaoOffsetScale
-
 };
 
 struct WPScalingParam
@@ -1324,9 +1272,9 @@ private:
   Int                        m_iLastIDR;
   Int                        m_iAssociatedIRAP;
   NalUnitType                m_iAssociatedIRAPType;
-  TComReferencePictureSet*   m_pcRPS;
-  TComReferencePictureSet    m_LocalRPS;
-  Int                        m_iBDidx;
+  const TComReferencePictureSet* m_pRPS;             //< pointer to RPS, either in the SPS or the local RPS in the same slice header
+  TComReferencePictureSet    m_localRPS;             //< RPS when present in slice header
+  Int                        m_rpsIdx;               //< index of used RPS in the SPS or -1 for local RPS in the slice header
   TComRefPicListModification m_RefPicListModification;
   NalUnitType                m_eNalUnitType;         ///< Nal unit type for the slice
   SliceType                  m_eSliceType;
@@ -1427,12 +1375,12 @@ public:
   Bool                        getPicOutputFlag() const                               { return m_PicOutputFlag;                                       }
   Void                        setSaoEnabledFlag(ChannelType chType, Bool s)          {m_saoEnabledFlag[chType] =s;                                   }
   Bool                        getSaoEnabledFlag(ChannelType chType) const            { return m_saoEnabledFlag[chType];                              }
-  Void                        setRPS( TComReferencePictureSet *pcRPS )               { m_pcRPS = pcRPS;                                              }
-  TComReferencePictureSet*    getRPS()                                               { return m_pcRPS;                                               }
-  TComReferencePictureSet*    getLocalRPS()                                          { return &m_LocalRPS;                                           }
+  Void                        setRPS( const TComReferencePictureSet *pcRPS )         { m_pRPS = pcRPS;                                               }
+  const TComReferencePictureSet* getRPS()                                            { return m_pRPS;                                                }
+  TComReferencePictureSet*    getLocalRPS()                                          { return &m_localRPS;                                           }
 
-  Void                        setRPSidx( Int iBDidx )                                { m_iBDidx = iBDidx;                                            }
-  Int                         getRPSidx() const                                      { return m_iBDidx;                                              }
+  Void                        setRPSidx( Int rpsIdx )                                { m_rpsIdx = rpsIdx;                                            }
+  Int                         getRPSidx() const                                      { return m_rpsIdx;                                              }
   TComRefPicListModification* getRefPicListModification()                            { return &m_RefPicListModification;                             }
   Void                        setLastIDR(Int iIDRPOC)                                { m_iLastIDR = iIDRPOC;                                         }
   Int                         getLastIDR() const                                     { return m_iLastIDR;                                            }
@@ -1443,6 +1391,7 @@ public:
   SliceType                   getSliceType() const                                   { return m_eSliceType;                                          }
   Int                         getPOC() const                                         { return m_iPOC;                                                }
   Int                         getSliceQp() const                                     { return m_iSliceQp;                                            }
+  Bool                        getUseWeightedPrediction() const                       { return( (m_eSliceType==P_SLICE && testWeightPred()) || (m_eSliceType==B_SLICE && testWeightBiPred()) ); }
   Bool                        getDependentSliceSegmentFlag() const                   { return m_dependentSliceSegmentFlag;                           }
   Void                        setDependentSliceSegmentFlag(Bool val)                 { m_dependentSliceSegmentFlag = val;                            }
 #if ADAPTIVE_QP_SELECTION
@@ -1458,8 +1407,10 @@ public:
 
   Int                         getNumRefIdx( RefPicList e ) const                     { return m_aiNumRefIdx[e];                                      }
   TComPic*                    getPic()                                               { return m_pcPic;                                               }
+  const TComPic*              getPic() const                                         { return m_pcPic;                                               }
   TComPic*                    getRefPic( RefPicList e, Int iRefIdx)                  { return m_apcRefPicList[e][iRefIdx];                           }
-  Int                         getRefPOC( RefPicList e, Int iRefIdx)                  { return m_aiRefPOCList[e][iRefIdx];                            }
+  const TComPic*              getRefPic( RefPicList e, Int iRefIdx) const            { return m_apcRefPicList[e][iRefIdx];                           }
+  Int                         getRefPOC( RefPicList e, Int iRefIdx) const            { return m_aiRefPOCList[e][iRefIdx];                            }
   Int                         getDepth() const                                       { return m_iDepth;                                              }
   Bool                        getColFromL0Flag() const                               { return m_colFromL0Flag;                                       }
   UInt                        getColRefIdx() const                                   { return m_colRefIdx;                                           }
@@ -1620,13 +1571,10 @@ public:
   Bool                        getLFCrossSliceBoundaryFlag()                          { return m_LFCrossSliceBoundaryFlag;                            }
 
   Void                        setEnableTMVPFlag( Bool   b )                          { m_enableTMVPFlag = b;                                         }
-  Bool                        getEnableTMVPFlag()                                    { return m_enableTMVPFlag;                                      }
+  Bool                        getEnableTMVPFlag() const                              { return m_enableTMVPFlag;                                      }
 
   Void                        setEncCABACTableIdx( SliceType idx )                   { m_encCABACTableIdx = idx;                                     }
   SliceType                   getEncCABACTableIdx() const                            { return m_encCABACTableIdx;                                    }
-#if 1//OUTPUT_FRM_LEN
-  int slice_len;
-#endif
 
 protected:
   TComPic*                    xGetRefPic        (TComList<TComPic*>& rcListPic, Int poc);
@@ -1634,7 +1582,7 @@ protected:
 };// END CLASS DEFINITION TComSlice
 
 
-Void calculateParameterSetChangedFlag(Bool &bChanged, const std::vector<UChar> *pOldData, const std::vector<UChar> &newData);
+Void calculateParameterSetChangedFlag(Bool &bChanged, const std::vector<UChar> *pOldData, const std::vector<UChar> *pNewData);
 
 template <class T> class ParameterSetMap
 {
@@ -1660,7 +1608,20 @@ public:
     }
   }
 
-  Void storePS(Int psId, T *ps, const std::vector<UChar> &naluData)
+  T *allocatePS(const Int psId)
+  {
+    assert ( psId < m_maxId );
+    if ( m_paramsetMap.find(psId) == m_paramsetMap.end() )
+    {
+      m_paramsetMap[psId].bChanged = true;
+      m_paramsetMap[psId].pNaluData=0;
+      m_paramsetMap[psId].parameterSet = new T;
+      setID(m_paramsetMap[psId].parameterSet, psId);
+    }
+    return m_paramsetMap[psId].parameterSet;
+  }
+
+  Void storePS(Int psId, T *ps, const std::vector<UChar> *pNaluData)
   {
     assert ( psId < m_maxId );
     if ( m_paramsetMap.find(psId) != m_paramsetMap.end() )
@@ -1668,7 +1629,7 @@ public:
       MapData<T> &mapData=m_paramsetMap[psId];
 
       // work out changed flag
-      calculateParameterSetChangedFlag(mapData.bChanged, mapData.pNaluData, naluData);
+      calculateParameterSetChangedFlag(mapData.bChanged, mapData.pNaluData, pNaluData);
       delete m_paramsetMap[psId].pNaluData;
       delete m_paramsetMap[psId].parameterSet;
 
@@ -1679,8 +1640,23 @@ public:
       m_paramsetMap[psId].parameterSet = ps;
       m_paramsetMap[psId].bChanged = false;
     }
-    m_paramsetMap[psId].pNaluData=new std::vector<UChar>;
-    *(m_paramsetMap[psId].pNaluData) = naluData;
+    if (pNaluData != 0)
+    {
+      m_paramsetMap[psId].pNaluData=new std::vector<UChar>;
+      *(m_paramsetMap[psId].pNaluData) = *pNaluData;
+    }
+    else
+    {
+      m_paramsetMap[psId].pNaluData=0;
+    }
+  }
+
+  Void setChangedFlag(Int psId, Bool bChanged=true)
+  {
+    if ( m_paramsetMap.find(psId) != m_paramsetMap.end() )
+    {
+      m_paramsetMap[psId].bChanged=bChanged;
+    }
   }
 
   Void clearChangedFlag(Int psId)
@@ -1721,7 +1697,10 @@ public:
 private:
   std::map<Int,MapData<T> > m_paramsetMap;
   Int                       m_maxId;
+
+  static Void setID(T* parameterSet, const Int psId);
 };
+
 
 class ParameterSetManager
 {
@@ -1730,7 +1709,7 @@ public:
   virtual        ~ParameterSetManager();
 
   //! store sequence parameter set and take ownership of it
-  Void           storeVPS(TComVPS *vps, const std::vector<UChar> &naluData) { m_vpsMap.storePS( vps->getVPSId(), vps, naluData); };
+  Void           storeVPS(TComVPS *vps, const std::vector<UChar> &naluData) { m_vpsMap.storePS( vps->getVPSId(), vps, &naluData); };
   //! get pointer to existing video parameter set
   TComVPS*       getVPS(Int vpsId)                                           { return m_vpsMap.getPS(vpsId); };
   Bool           getVPSChangedFlag(Int vpsId) const                          { return m_vpsMap.getChangedFlag(vpsId); }
@@ -1738,7 +1717,7 @@ public:
   TComVPS*       getFirstVPS()                                               { return m_vpsMap.getFirstPS(); };
 
   //! store sequence parameter set and take ownership of it
-  Void           storeSPS(TComSPS *sps, const std::vector<UChar> &naluData) { m_spsMap.storePS( sps->getSPSId(), sps, naluData); };
+  Void           storeSPS(TComSPS *sps, const std::vector<UChar> &naluData) { m_spsMap.storePS( sps->getSPSId(), sps, &naluData); };
   //! get pointer to existing sequence parameter set
   TComSPS*       getSPS(Int spsId)                                           { return m_spsMap.getPS(spsId); };
   Bool           getSPSChangedFlag(Int spsId) const                          { return m_spsMap.getChangedFlag(spsId); }
@@ -1746,7 +1725,7 @@ public:
   TComSPS*       getFirstSPS()                                               { return m_spsMap.getFirstPS(); };
 
   //! store picture parameter set and take ownership of it
-  Void           storePPS(TComPPS *pps, const std::vector<UChar> &naluData) { m_ppsMap.storePS( pps->getPPSId(), pps, naluData); };
+  Void           storePPS(TComPPS *pps, const std::vector<UChar> &naluData) { m_ppsMap.storePS( pps->getPPSId(), pps, &naluData); };
   //! get pointer to existing picture parameter set
   TComPPS*       getPPS(Int ppsId)                                           { return m_ppsMap.getPS(ppsId); };
   Bool           getPPSChangedFlag(Int ppsId) const                          { return m_ppsMap.getChangedFlag(ppsId); }
@@ -1776,512 +1755,3 @@ protected:
 //! \}
 
 #endif // __TCOMSLICE__
-=======
-/* ====================================================================================================================
-
-  The copyright in this software is being made available under the License included below.
-  This software may be subject to other third party and   contributor rights, including patent rights, and no such
-  rights are granted under this license.
-
-  Copyright (c) 2010, SAMSUNG ELECTRONICS CO., LTD. and BRITISH BROADCASTING CORPORATION
-  All rights reserved.
-
-  Redistribution and use in source and binary forms, with or without modification, are permitted only for
-  the purpose of developing standards within the Joint Collaborative Team on Video Coding and for testing and
-  promoting such standards. The following conditions are required to be met:
-
-    * Redistributions of source code must retain the above copyright notice, this list of conditions and
-      the following disclaimer.
-    * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and
-      the following disclaimer in the documentation and/or other materials provided with the distribution.
-    * Neither the name of SAMSUNG ELECTRONICS CO., LTD. nor the name of the BRITISH BROADCASTING CORPORATION
-      may be used to endorse or promote products derived from this software without specific prior written permission.
-
-  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
-  INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
- * ====================================================================================================================
-*/
-
-/** \file     TComSlice.h
-    \brief    slice header and SPS class (header)
-*/
-
-#ifndef __TCOMSLICE__
-#define __TCOMSLICE__
-
-
-#include "CommonDef.h"
-#include "TComList.h"
-#ifdef DCM_PBIC
-#include "TComZeroTree.h"
-#endif
-
-class TComPic;
-
-// ====================================================================================================================
-// Class definition
-// ====================================================================================================================
-
-/// SPS class
-class TComSPS
-{
-private:
-  // Structure
-  UInt        m_uiWidth;
-  UInt        m_uiHeight;
-  Int         m_aiPad[2];
-  UInt        m_uiMaxCUWidth;
-  UInt        m_uiMaxCUHeight;
-  UInt        m_uiMaxCUDepth;
-  UInt        m_uiMinTrDepth;
-  UInt        m_uiMaxTrDepth;
-
-  // Tool list
-#if HHI_RQT
-  Bool        m_bQuadtreeTUFlag;
-  UInt        m_uiQuadtreeTULog2MaxSize;
-  UInt        m_uiQuadtreeTULog2MinSize;
-#if HHI_RQT_DEPTH
-  UInt        m_uiQuadtreeTUMaxDepth;
-#endif
-#endif
-  Bool        m_bUseALF;
-  Bool        m_bUseDQP;
-  Bool        m_bUseWPG;
-  Bool        m_bUseWPO;
-  Bool        m_bUseLDC;
-  Bool        m_bUsePAD;
-  Bool        m_bUseQBO;
-  Int         m_iDIFTap;
-#if SAMSUNG_CHROMA_IF_EXT
-  Int         m_iDIFTapC;
-#endif
-
-#if HHI_ALLOW_CIP_SWITCH
-	Bool        m_bUseCIP; // BB:
-#endif
-  Bool				m_bUseROT; // BB:
-#if HHI_AIS
-  Bool        m_bUseAIS; // BB:
-#endif
-#if HHI_MRG
-  Bool        m_bUseMRG; // SOPH:
-#endif
-#if HHI_IMVP
-  Bool        m_bUseIMP; // SOPH:
-#endif
-
-#ifdef QC_AMVRES
-	Bool					m_bUseAMVRes;
-#endif
-#ifdef QC_SIFO_PRED
-  Bool          m_bUseSIFO_Pred;
-#endif
-#ifdef DCM_PBIC 
-  Bool          m_bUseIC;
-#endif
-
-  Bool        m_bUseAMP;
-#if HHI_RMP_SWITCH
-  Bool        m_bUseRMP;
-#endif
-  // Parameter
-  AMVP_MODE   m_aeAMVPMode[MAX_CU_DEPTH];
-  UInt        m_uiBitDepth;
-  UInt        m_uiBitIncrement;
-
-#if HHI_ALF
-  Bool        m_bALFSeparateQt;
-  Bool        m_bALFSymmetry;
-  Int         m_iALFMinLength;
-  Int         m_iALFMaxLength;
-#endif
-
-  // Max physical transform size
-  UInt        m_uiMaxTrSize;
-
-  Int m_iAMPAcc[MAX_CU_DEPTH];
-
-  UInt        m_uiBalancedCPUs;
-
-public:
-  TComSPS();
-  virtual ~TComSPS();
-
-  // structure
-  Void setWidth       ( UInt u ) { m_uiWidth = u;           }
-  UInt getWidth       ()         { return  m_uiWidth;       }
-  Void setHeight      ( UInt u ) { m_uiHeight = u;          }
-  UInt getHeight      ()         { return  m_uiHeight;      }
-  Void setMaxCUWidth  ( UInt u ) { m_uiMaxCUWidth = u;      }
-  UInt getMaxCUWidth  ()         { return  m_uiMaxCUWidth;  }
-  Void setMaxCUHeight ( UInt u ) { m_uiMaxCUHeight = u;     }
-  UInt getMaxCUHeight ()         { return  m_uiMaxCUHeight; }
-  Void setMaxCUDepth  ( UInt u ) { m_uiMaxCUDepth = u;      }
-  UInt getMaxCUDepth  ()         { return  m_uiMaxCUDepth;  }
-  Void setMinTrDepth  ( UInt u ) { m_uiMinTrDepth = u;      }
-  UInt getMinTrDepth  ()         { return  m_uiMinTrDepth;  }
-  Void setMaxTrDepth  ( UInt u ) { m_uiMaxTrDepth = u;      }
-  UInt getMaxTrDepth  ()         { return  m_uiMaxTrDepth;  }
-#if HHI_RQT
-  Void setQuadtreeTUFlag( Bool b )        { m_bQuadtreeTUFlag = b;            }
-  Bool getQuadtreeTUFlag()                { return m_bQuadtreeTUFlag;         }
-  Void setQuadtreeTULog2MaxSize( UInt u ) { m_uiQuadtreeTULog2MaxSize = u;    }
-  UInt getQuadtreeTULog2MaxSize()         { return m_uiQuadtreeTULog2MaxSize; }
-  Void setQuadtreeTULog2MinSize( UInt u ) { m_uiQuadtreeTULog2MinSize = u;    }
-  UInt getQuadtreeTULog2MinSize()         { return m_uiQuadtreeTULog2MinSize; }
-#if HHI_RQT_DEPTH
-  Void setQuadtreeTUMaxDepth( UInt u ) { m_uiQuadtreeTUMaxDepth = u;    }
-  UInt getQuadtreeTUMaxDepth()         { return m_uiQuadtreeTUMaxDepth; }
-#endif
-#endif
-  Void setPad         (Int iPad[2]) { m_aiPad[0] = iPad[0]; m_aiPad[1] = iPad[1]; }
-  Void setPadX        ( Int  u ) { m_aiPad[0] = u; }
-  Void setPadY        ( Int  u ) { m_aiPad[1] = u; }
-  Int  getPad         ( Int  u ) { assert(u < 2); return m_aiPad[u];}
-  Int* getPad         ( )        { return m_aiPad; }
-  Void setBalancedCPUs( UInt u ) { m_uiBalancedCPUs = u; }
-  UInt getBalancedCPUs()         { return m_uiBalancedCPUs; }
-
-  // physical transform
-  Void setMaxTrSize   ( UInt u ) { m_uiMaxTrSize = u;       }
-  UInt getMaxTrSize   ()         { return  m_uiMaxTrSize;   }
-
-  // Tool list
-  Bool getUseALF      ()         { return m_bUseALF;        }
-  Bool getUseDQP      ()         { return m_bUseDQP;        }
-
-  Bool getUseWPG      ()         { return m_bUseWPG;        }
-  Bool getUseWPO      ()         { return m_bUseWPO;        }
-  Bool getUseLDC      ()         { return m_bUseLDC;        }
-  Bool getUsePAD      ()         { return m_bUsePAD;        }
-  Bool getUseQBO      ()         { return m_bUseQBO;        }
-#if HHI_ALLOW_CIP_SWITCH
-  Bool getUseCIP      ()         { return m_bUseCIP;        }	// BB:
-#endif
-  Bool getUseROT			()				 { return m_bUseROT;				} // BB:
-#if HHI_AIS
-  Bool getUseAIS      ()         { return m_bUseAIS;        } // BB:
-#endif
-#if HHI_MRG
-  Bool getUseMRG      ()         { return m_bUseMRG;        } // SOPH:
-#endif
-#if HHI_IMVP
-  Bool getUseIMP      ()         { return m_bUseIMP;        } // SOPH:
-#endif
-
-  Int  getDIFTap      ()         { return m_iDIFTap;        }
-#if SAMSUNG_CHROMA_IF_EXT
-  Int  getDIFTapC     ()         { return m_iDIFTapC;       };
-#endif
-
-#ifdef QC_AMVRES
-	Bool getUseAMVRes      ()         { return m_bUseAMVRes;        }
-#endif
-  Void setUseALF      ( Bool b ) { m_bUseALF  = b;          }
-  Void setUseDQP      ( Bool b ) { m_bUseDQP   = b;         }
-
-  Void setUseWPG      ( Bool b ) { m_bUseWPG   = b; if (m_bUseWPG && m_bUseWPO) m_bUseWPO =  false;}
-  Void setUseWPO      ( Bool b ) { m_bUseWPO   = b; if (m_bUseWPG && m_bUseWPO) m_bUseWPG =  false;}
-  Void setUseLDC      ( Bool b ) { m_bUseLDC   = b;         }
-  Void setUsePAD      ( Bool b ) { m_bUsePAD   = b;         }
-  Void setUseQBO      ( Bool b ) { m_bUseQBO   = b;         }
-#if HHI_ALLOW_CIP_SWITCH
-	Void setUseCIP      ( Bool b ) { m_bUseCIP   = b;         }	// BB:
-#endif
-  Void setUseROT			( Bool b ) { m_bUseROT	 = b;					} // BB:
-#if HHI_AIS
-  Void setUseAIS      ( Bool b ) { m_bUseAIS   = b;         } // BB:
-#endif
-#if HHI_MRG
-  Void setUseMRG      ( Bool b ) { m_bUseMRG  = b;          } // SOPH:
-#endif
-#if HHI_IMVP
-  Void setUseIMP      ( Bool b ) { m_bUseIMP  = b;          } // SOPH:
-#endif
-
-  Void setDIFTap      ( Int  i ) { m_iDIFTap   = i;         }
- #if SAMSUNG_CHROMA_IF_EXT
-  Void setDIFTapC     ( Int  i ) { m_iDIFTapC = i;          };
-#endif
-
-#ifdef QC_AMVRES
-	Void setUseAMVRes      ( Bool b ) { m_bUseAMVRes    =b;        }
-#endif
-#if HHI_ALF
-  // ALF Parameters
-  Bool getALFSeparateQt ()         { return m_bALFSeparateQt; }
-  Bool getALFSymmetry   ()         { return m_bALFSymmetry;   }
-  Int  getALFMinLength  ()         { return m_iALFMinLength;  }
-  Int  getALFMaxLength  ()         { return m_iALFMaxLength;  }
-  Void setALfSeparateQt ( Bool b ) { m_bALFSeparateQt = b;    }
-  Void setALFSymmetry   ( Bool b ) { m_bALFSymmetry   = b;    }
-  Void setALFMinLength  ( Int  i ) { m_iALFMinLength  = i;    }
-  Void setALFMaxLength  ( Int  i ) { m_iALFMaxLength  = i;    }
-#endif
-
-#ifdef QC_SIFO_PRED
-	Void setUseSIFO_Pred      ( Bool b ) { m_bUseSIFO_Pred    =b;        }
-	Bool getUseSIFO_Pred      ()         { return m_bUseSIFO_Pred;        }
-#endif
-
-#ifdef DCM_PBIC 
-	Void setUseIC       ( Bool b ) { m_bUseIC   = b;          }
-  Bool getUseIC       ()         { return m_bUseIC;         }
-#endif
-
-  Bool getUseAMP      ()         { return m_bUseAMP; }
-  Void setUseAMP      ( Bool b ) { m_bUseAMP  = b; }
-
-#if HHI_RMP_SWITCH
-  Bool getUseRMP     ()         { return m_bUseRMP; }
-  Void setUseRMP     ( Bool b ) { m_bUseRMP = b;    }
-#endif
-
-  // AMVP mode (for each depth)
-  AMVP_MODE getAMVPMode ( UInt uiDepth ) { assert(uiDepth < g_uiMaxCUDepth);  return m_aeAMVPMode[uiDepth]; }
-  Void      setAMVPMode ( UInt uiDepth, AMVP_MODE eMode) { assert(uiDepth < g_uiMaxCUDepth);  m_aeAMVPMode[uiDepth] = eMode; }
-
-  // AMP accuracy
-  Int       getAMPAcc   ( UInt uiDepth ) { return m_iAMPAcc[uiDepth]; }
-  Void      setAMPAcc   ( UInt uiDepth, Int iAccu ) { assert( uiDepth < g_uiMaxCUDepth);  m_iAMPAcc[uiDepth] = iAccu; }
-
-  // Bit-depth
-  UInt      getBitDepth     ()         { return m_uiBitDepth;     }
-  Void      setBitDepth     ( UInt u ) { m_uiBitDepth = u;        }
-  UInt      getBitIncrement ()         { return m_uiBitIncrement; }
-  Void      setBitIncrement ( UInt u ) { m_uiBitIncrement = u;    }
-};
-
-/// PPS class
-class TComPPS
-{
-private:
-  
-public:
-  TComPPS();
-  virtual ~TComPPS();
-
-};
-
-/// slice header class
-class TComSlice
-{
-
-private:
-  //  Bitstream writing
-  Int         m_iPOC;
-  SliceType   m_eSliceType;
-  Int         m_iSliceQp;
-  Int         m_iSymbolMode ;
-  Bool        m_bMultiCodeword;
-  UInt        m_uiMaxPIPEDelay;
-  Bool        m_bLoopFilterDisable;
-
-  UInt        m_uiBalancedCPUs;
-
-  Bool        m_bDRBFlag;             //  flag for future usage as reference buffer
-  ERBIndex    m_eERBIndex;            //  flag for future usage as reference buffer
-  Int         m_aiNumRefIdx   [2];    //  for multiple reference of current slice
-
-  //  Data
-  Int         m_iSliceQpDelta;
-  TComPic*    m_apcRefPicList [2][MAX_NUM_REF+GRF_MAX_NUM_EFF];
-  Int m_aiRefPOCList[2][MAX_NUM_REF+GRF_MAX_NUM_EFF];
-  Int         m_iDepth;
-
-  // referenced slice?
-  Bool        m_bRefenced;
-#ifdef ROUNDING_CONTROL_BIPRED
-  Bool		  m_bRounding;
-#endif
-
-  // access channel
-  TComSPS*    m_pcSPS;
-  TComPPS*    m_pcPPS;
-  TComPic*    m_pcPic;
-
-  UInt        m_uiColDir;  // direction to get colocated CUs
-
-  Double      m_dLambda;
-
-  // generated reference frame for weighted prediction
-  EFF_MODE    m_aeEffectMode[2][GRF_MAX_NUM_EFF];
-  UInt        m_auiAddRefCnt[2];
-  TComPic*    m_apcVirtPic  [2][GRF_MAX_NUM_EFF];
-  Bool        m_abEqualRef  [2][MAX_NUM_REF+GRF_MAX_NUM_EFF][MAX_NUM_REF+GRF_MAX_NUM_EFF];
-
-  Int         m_iWPWeight   [2][GRF_MAX_NUM_WEFF][3];
-  Int         m_iWPOffset   [2][GRF_MAX_NUM_WEFF][3];
-  Int         m_aiWPmode[2];
-  Int         m_iRFmode;
-  Int         m_iLumaLogWeightDenom;
-  Int         m_iChromaLogWeightDenom;
-  Int         m_iWPLumaRound;
-  Int         m_iWPChromaRound;
-#ifdef EDGE_BASED_PREDICTION
-  Bool        m_bEdgePredictionEnable;
-  Int         m_iEdgeDetectionThreshold;
-#endif //EDGE_BASED_PREDICTION
-#if HHI_INTERP_FILTER
-  Int         m_iInterpFilterType;
-#endif
-#ifdef QC_SIFO_PRED
-	Bool        m_bUseSIFO_Pred;
-#endif
-#ifdef DCM_PBIC
-  TComZeroTree* m_apcZTree  [MAX_NUM_ZTREE];
-  Void        xCreateZTrees();
-  Void        xDeleteZTrees();
-#endif
-
-public:
-  TComSlice();
-  virtual ~TComSlice();
-
-  Void      initSlice       ();
-
-  Void      setSPS          ( TComSPS* pcSPS ) { m_pcSPS = pcSPS; }
-  TComSPS*  getSPS          () { return m_pcSPS; }
-
-  Void      setPPS          ( TComPPS* pcPPS ) { m_pcPPS = pcPPS; }
-  TComPPS*  getPPS          () { return m_pcPPS; }
-
-  SliceType getSliceType    ()                          { return  m_eSliceType;         }
-  Int       getPOC          ()                          { return  m_iPOC;           }
-  Int       getSliceQp      ()                          { return  m_iSliceQp;           }
-  Int       getSliceQpDelta ()                          { return  m_iSliceQpDelta;      }
-  Bool      getDRBFlag          ()                      { return  m_bDRBFlag;           }
-  ERBIndex  getERBIndex         ()                      { return  m_eERBIndex;          }
-  Int       getSymbolMode ()                            { return  m_iSymbolMode;        }
-  Bool      getMultiCodeword    ()                      { return  m_bMultiCodeword;     }
-  UInt      getMaxPIPEDelay     ()                      { return  m_uiMaxPIPEDelay;     }
-  Bool      getLoopFilterDisable()                      { return  m_bLoopFilterDisable; }
-  UInt      getBalancedCPUs     ()                      { return  m_uiBalancedCPUs;     }
-#ifdef QC_SIFO_PRED
-	Void setUseSIFO_Pred      ( Bool b ) { m_bUseSIFO_Pred    =b;        }
-	Bool getUseSIFO_Pred      ()         { return m_bUseSIFO_Pred;        }
-#endif
-  Int       getNumRefIdx        ( RefPicList e )                { return  m_aiNumRefIdx[e];             }
-  TComPic*  getPic              ()                              { return  m_pcPic;                      }
-  TComPic*  getRefPic           ( RefPicList e, Int iRefIdx)    { return  m_apcRefPicList[e][iRefIdx];  }
-  Int       getRefPOC           ( RefPicList e, Int iRefIdx)    { return  m_aiRefPOCList[e][iRefIdx];   }
-  Int       getDepth            ()                              { return  m_iDepth;                     }
-  UInt      getColDir           ()                              { return  m_uiColDir;                   }
-#ifdef DCM_PBIC
-  TComZeroTree* getZTree        ( UInt uiZTreeIdx )             { return  m_apcZTree[uiZTreeIdx];       }
-#endif
-
-  Void      setReferenced(Bool b)                               { m_bRefenced = b; }
-  Bool      isReferenced()                                      { return m_bRefenced; }
-#ifdef ROUNDING_CONTROL_BIPRED
-  Void      setRounding(Bool bRound)                            { m_bRounding = bRound; }
-  Bool      isRounding()                                        { return m_bRounding; }
-#endif
-
-  Void      setPOC              ( Int i )                       { m_iPOC              = i;      }
-  Void      setSliceType        ( SliceType e )                 { m_eSliceType        = e;      }
-  Void      setSliceQp          ( Int i )                       { m_iSliceQp          = i;      }
-  Void      setSliceQpDelta     ( Int i )                       { m_iSliceQpDelta     = i;      }
-  Void      setDRBFlag          ( Bool b )                      { m_bDRBFlag = b;               }
-  Void      setERBIndex         ( ERBIndex e )                  { m_eERBIndex = e;              }
-  Void      setSymbolMode       ( Int b  )                      { m_iSymbolMode       = b;      }
-  Void      setMultiCodeword    ( Bool b )                      { m_bMultiCodeword    = b;      }
-  Void      setMaxPIPEDelay     ( UInt ui )                     { m_uiMaxPIPEDelay    = ui;     }
-  Void      setLoopFilterDisable( Bool b )                      { m_bLoopFilterDisable= b;      }
-  Void      setBalancedCPUs     ( UInt ui )                     { m_uiBalancedCPUs    = ui;     }
-
-  Void      setRefPic           ( TComPic* p, RefPicList e, Int iRefIdx ) { m_apcRefPicList[e][iRefIdx] = p; }
-  Void      setRefPOC           ( Int i, RefPicList e, Int iRefIdx ) { m_aiRefPOCList[e][iRefIdx] = i; }
-  Void      setNumRefIdx        ( RefPicList e, Int i )         { m_aiNumRefIdx[e]    = i;      }
-  Void      setPic              ( TComPic* p )                  { m_pcPic             = p;      }
-  Void      setDepth            ( Int iDepth )                  { m_iDepth            = iDepth; }
-
-  Void      setRefPicList       ( TComList<TComPic*>& rcListPic );
-  Void      setRefPOCList       ();
-  Void setColDir (UInt uiDir) { m_uiColDir = uiDir; }
-
-  Bool      isIntra         ()                          { return  m_eSliceType == I_SLICE;  }
-  Bool      isInterB        ()                          { return  m_eSliceType == B_SLICE;  }
-  Bool      isInterP        ()                          { return  m_eSliceType == P_SLICE;  }
-
-  Void      setLambda( Double d ) { m_dLambda = d; }
-  Double    getLambda() { return m_dLambda;        }
-#ifdef EDGE_BASED_PREDICTION
-  Void      setEdgePredictionEnable (Bool b)  { m_bEdgePredictionEnable = b; } 
-  Bool      getEdgePredictionEnable ()        { return m_bEdgePredictionEnable; }
-  Void      setEdgeDetectionThreshold (Int i) { m_iEdgeDetectionThreshold = i; }
-  Int       getEdgeDetectionThreshold ()      { return m_iEdgeDetectionThreshold; }
-#endif //EDGE_BASED_PREDICTION
-  Void generateWPSlice( RefPicList e, EFF_MODE eEffMode, UInt uiInsertIdx);
-
-  Void initWPParam( RefPicList e, EFF_MODE eEffMode, Int colorChannel);
-  Void initWPAllParam( RefPicList e, EFF_MODE eEffMode);
-
-  Bool isEqualWPParam( RefPicList e, EFF_MODE eEffMode1, EFF_MODE eEffMode2, Int colorChannel);
-  Bool isEqualWPAllParam( RefPicList e, EFF_MODE eEffMode1, EFF_MODE eEffMode2);
-
-  Void  setWPWeight ( RefPicList e, EFF_MODE eEffMode, Int colorChannel, Int weight)    { m_iWPWeight[e][eEffMode-EFF_WP_SO][colorChannel]=weight; }
-  Void  setWPOffset ( RefPicList e, EFF_MODE eEffMode, Int colorChannel, Int offset)    { m_iWPOffset[e][eEffMode-EFF_WP_SO][colorChannel]=offset; }
-  Int   getWPWeight ( RefPicList e, EFF_MODE eEffMode, Int colorChannel ) { return m_iWPWeight[e][eEffMode-EFF_WP_SO][colorChannel]; }
-  Int   getWPOffset ( RefPicList e, EFF_MODE eEffMode, Int colorChannel ) { return m_iWPOffset[e][eEffMode-EFF_WP_SO][colorChannel]; }
-
-  Void  setWPmode(RefPicList e, Int iWpMode) { m_aiWPmode[e]=iWpMode; }
-  Int   getWPmode(RefPicList e) { return m_aiWPmode[e]; }
-  Void  setRFmode(Int iRfMode) { m_iRFmode=iRfMode; }
-  Int   getRFmode() { return m_iRFmode; }
-
-  EFF_MODE getEffectMode(RefPicList e, Int i) {return m_aeEffectMode[e][i]; }
-  Void addEffectMode(RefPicList e, EFF_MODE eEffMode) {m_aeEffectMode[e][m_auiAddRefCnt[e]]=eEffMode; m_auiAddRefCnt[e] ++;}
-  Void removeEffectMode(RefPicList e, EFF_MODE eEffMode);
-
-  UInt getAddRefCnt(RefPicList e) { return m_auiAddRefCnt[e];  }
-  Void clearAddRefCnt(RefPicList e) { m_auiAddRefCnt[e] = 0;     }
-
-  Void setVirtRefBuffer(TComPic* pSrc[2][GRF_MAX_NUM_EFF]);
-  Void linkVirtRefPic();
-
-  Void initEqualRef();
-  Bool      isEqualRef  ( RefPicList e, Int iRefIdx1, Int iRefIdx2 )
-  {
-    if (iRefIdx1 < 0 || iRefIdx2 < 0) return false;
-      return m_abEqualRef[e][iRefIdx1][iRefIdx2];
-  }
-
-  Void setEqualRef( RefPicList e, Int iRefIdx1, Int iRefIdx2, Bool b)
-  {
-    m_abEqualRef[e][iRefIdx1][iRefIdx2] = m_abEqualRef[e][iRefIdx2][iRefIdx1] = b;
-  }
-
-  static Void      sortPicList         ( TComList<TComPic*>& rcListPic );
-
-#if HHI_INTERP_FILTER
-  Int  getInterpFilterType     ()         { return m_iInterpFilterType;       }
-  Void setInterpFilterType     ( Int  i ) { m_iInterpFilterType  = i;         }
-  Bool getUseMOMS              ()         { return ( ( m_iInterpFilterType == IPF_HHI_4TAP_MOMS || m_iInterpFilterType == IPF_HHI_6TAP_MOMS ) ); }
-#endif
-
-#ifdef QC_SIFO
-  Bool getUseSIFO              ()         { return ( m_iInterpFilterType == IPF_QC_SIFO); }
-#endif
-
-protected:
-  TComPic*  xGetRefPic  (TComList<TComPic*>& rcListPic,
-                         Bool                bDRBFlag,
-                         ERBIndex            eERBIndex,
-                         UInt                uiPOCCurr,
-                         RefPicList          eRefPicList,
-                         UInt                uiNthRefPic );
-
-};// END CLASS DEFINITION TComSlice
-
-
-#endif // __TCOMSLICE__
-
->>>>>>> upstream/master

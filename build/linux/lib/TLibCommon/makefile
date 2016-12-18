@@ -3,19 +3,11 @@ CONFIG 			= LIBRARY
 
 # set pathes to the correct directories
 SRC_DIR			= ../../../../source/Lib/TLibCommon
-<<<<<<< HEAD
 INC_DIR			= ../../../../source/Lib
 LIB_DIR			= ../../../../lib
 BIN_DIR			= ../../../../bin
 
 SRC_DIR1		= ../../../../source/Lib/libmd5
-=======
-INC_DIR			= ../../../../source/Lib/TLibCommon
-LIB_DIR			= ../../../../lib
-BIN_DIR			= ../../../../bin
-
-SRC_DIR1		=
->>>>>>> upstream/master
 SRC_DIR2		=
 SRC_DIR3		=
 SRC_DIR4		=
@@ -24,7 +16,6 @@ SRC_DIR4		=
 USER_INC_DIRS	= -I$(SRC_DIR)
 USER_LIB_DIRS	=
 
-<<<<<<< HEAD
 ifeq ($(HIGHBITDEPTH), 1)
 HBD=HighBitDepth
 else
@@ -36,13 +27,6 @@ OBJ_DIR			= ./objects$(HBD)
 
 # the library name
 PRJ_NAME	 	= TLibCommon$(HBD)
-=======
-# intermediate directory for object files
-OBJ_DIR			= ./objects
-
-# the library name
-PRJ_NAME	 	= TLibCommon
->>>>>>> upstream/master
 
 # version information
 MAJOR_VER		= 0
@@ -54,7 +38,6 @@ DEFS			= -DMSYS_LINUX
 
 # set objects
 OBJS          	= \
-<<<<<<< HEAD
 			$(OBJ_DIR)/Debug.o \
 			$(OBJ_DIR)/TComPicYuv.o \
 			$(OBJ_DIR)/TComYuv.o \
@@ -66,45 +49,22 @@ OBJS          	= \
 			$(OBJ_DIR)/TComBitStream.o \
 			$(OBJ_DIR)/TComChromaFormat.o \
 			$(OBJ_DIR)/TComDataCU.o \
-=======
-			$(OBJ_DIR)/ContextModel.o \
-			$(OBJ_DIR)/ContextModel3DBuffer.o \
-			$(OBJ_DIR)/TComCABACTables.o \
-			$(OBJ_DIR)/TComAdaptiveLoopFilter.o \
-			$(OBJ_DIR)/TComBitStream.o \
-			$(OBJ_DIR)/TComBitBuffer.o \
-			$(OBJ_DIR)/TComDataCU.o \
-			$(OBJ_DIR)/TComEdgeBased.o \
-			$(OBJ_DIR)/TComIc.o \
-			$(OBJ_DIR)/TComICInfo.o \
->>>>>>> upstream/master
 			$(OBJ_DIR)/TComLoopFilter.o \
 			$(OBJ_DIR)/TComMotionInfo.o \
 			$(OBJ_DIR)/TComPattern.o \
 			$(OBJ_DIR)/TComPic.o \
 			$(OBJ_DIR)/TComPicSym.o \
-<<<<<<< HEAD
 			$(OBJ_DIR)/TComPicYuvMD5.o \
-=======
-			$(OBJ_DIR)/TComPicYuv.o \
-			$(OBJ_DIR)/TComPredFilter.o \
-			$(OBJ_DIR)/TComPredFilterMOMS.o \
->>>>>>> upstream/master
 			$(OBJ_DIR)/TComPrediction.o \
 			$(OBJ_DIR)/TComRdCost.o \
 			$(OBJ_DIR)/TComRom.o \
 			$(OBJ_DIR)/TComSlice.o \
 			$(OBJ_DIR)/TComTrQuant.o \
-<<<<<<< HEAD
 			$(OBJ_DIR)/TComTU.o \
 			$(OBJ_DIR)/TComInterpolationFilter.o \
 			$(OBJ_DIR)/libmd5.o \
 			$(OBJ_DIR)/TComWeightPrediction.o \
 			$(OBJ_DIR)/TComRdCostWeightPrediction.o \
-=======
-			$(OBJ_DIR)/TComYuv.o \
-			$(OBJ_DIR)/TComZeroTree.o \
->>>>>>> upstream/master
 
 LIBS				= -lpthread
 

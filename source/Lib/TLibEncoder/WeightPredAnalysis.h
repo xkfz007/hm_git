@@ -3,7 +3,7 @@
  * and contributor rights, including patent rights, and no such rights are
  * granted under this license.
  *
- * Copyright (c) 2010-2015, ITU/ISO/IEC
+ * Copyright (c) 2010-2016, ITU/ISO/IEC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,19 +51,8 @@ private:
   // member functions
 
   Bool  xSelectWP            (TComSlice *const slice, const Int log2Denom);
+  Bool  xSelectWPHistExtClip (TComSlice *const slice, const Int log2Denom, const Bool bDoEnhancement, const Bool bClipInitialSADWP, const Bool bUseHistogram);
   Bool  xUpdatingWPParameters(TComSlice *const slice, const Int log2Denom);
-
-  Int64 xCalcSADvalueWP      (const Int   bitDepth,
-                              const Pel  *pOrgPel,
-                              const Pel  *pRefPel,
-                              const Int   iWidth,
-                              const Int   iHeight,
-                              const Int   iOrgStride,
-                              const Int   iRefStride,
-                              const Int   iLog2Denom,
-                              const Int   iWeight,
-                              const Int   iOffset,
-                              const Bool  useHighPrecisionPredictionWeighting);
 
 public:
 
@@ -71,7 +60,7 @@ public:
 
   // WP analysis :
   Void  xCalcACDCParamSlice  (TComSlice *const slice);
-  Void  xEstimateWPParamSlice(TComSlice *const slice);
+  Void  xEstimateWPParamSlice(TComSlice *const slice, const WeightedPredictionMethod method);
   Void  xCheckWPEnable       (TComSlice *const slice);
 };
 

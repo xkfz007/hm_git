@@ -3,7 +3,7 @@
  * and contributor rights, including patent rights, and no such rights are
  * granted under this license.
  *
- * Copyright (c) 2010-2015, ITU/ISO/IEC
+ * Copyright (c) 2010-2016, ITU/ISO/IEC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -114,7 +114,7 @@ void SEIPictureTiming::copyTo (SEIPictureTiming& target)
 }
 
 // Static member
-const Char *SEI::getSEIMessageString(SEI::PayloadType payloadType)
+const TChar *SEI::getSEIMessageString(SEI::PayloadType payloadType)
 {
   switch (payloadType)
   {
@@ -135,6 +135,7 @@ const Char *SEI::getSEIMessageString(SEI::PayloadType payloadType)
     case SEI::KNEE_FUNCTION_INFO:                   return "Knee function information";
     case SEI::FRAME_PACKING:                        return "Frame packing arrangement";
     case SEI::DISPLAY_ORIENTATION:                  return "Display orientation";
+    case SEI::GREEN_METADATA:                       return "Green metadata information";
     case SEI::SOP_DESCRIPTION:                      return "Structure of pictures information";
     case SEI::ACTIVE_PARAMETER_SETS:                return "Active parameter sets";
     case SEI::DECODING_UNIT_INFO:                   return "Decoding unit information";
@@ -147,7 +148,9 @@ const Char *SEI::getSEIMessageString(SEI::PayloadType payloadType)
     case SEI::MASTERING_DISPLAY_COLOUR_VOLUME:      return "Mastering display colour volume";
     case SEI::SEGM_RECT_FRAME_PACKING:              return "Segmented rectangular frame packing arrangement";
     case SEI::TEMP_MOTION_CONSTRAINED_TILE_SETS:    return "Temporal motion constrained tile sets";
-    case SEI::CHROMA_SAMPLING_FILTER_HINT:          return "Chroma sampling filter hint";
+    case SEI::CHROMA_RESAMPLING_FILTER_HINT:        return "Chroma sampling filter hint";
+    case SEI::COLOUR_REMAPPING_INFO:                return "Colour remapping info";
+    case SEI::ALTERNATIVE_TRANSFER_CHARACTERISTICS: return "Alternative transfer characteristics";
     default:                                        return "Unknown";
   }
 }

@@ -1,10 +1,9 @@
-<<<<<<< HEAD
 /* The copyright in this software is being made available under the BSD
  * License, included below. This software may be subject to other third party
  * and contributor rights, including patent rights, and no such rights are
  * granted under this license.
  *
- * Copyright (c) 2010-2015, ITU/ISO/IEC
+ * Copyright (c) 2010-2016, ITU/ISO/IEC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,9 +52,9 @@ TComSlice::TComSlice()
 , m_iLastIDR                      ( 0 )
 , m_iAssociatedIRAP               ( 0 )
 , m_iAssociatedIRAPType           ( NAL_UNIT_INVALID )
-, m_pcRPS                         ( 0 )
-, m_LocalRPS                      ( )
-, m_iBDidx                        ( 0 )
+, m_pRPS                          ( 0 )
+, m_localRPS                      ( )
+, m_rpsIdx                        ( 0 )
 , m_RefPicListModification        ( )
 , m_eNalUnitType                  ( NAL_UNIT_CODED_SLICE_IDR_W_RADL )
 , m_eSliceType                    ( I_SLICE )
@@ -319,18 +318,15 @@ Void TComSlice::setList1IdxToList0Idx()
 
 Void TComSlice::setRefPicList( TComList<TComPic*>& rcListPic, Bool checkNumPocTotalCurr )
 {
-  if (!checkNumPocTotalCurr)
+  if ( m_eSliceType == I_SLICE)
   {
-    if (m_eSliceType == I_SLICE)
-    {
-      ::memset( m_apcRefPicList, 0, sizeof (m_apcRefPicList));
-      ::memset( m_aiNumRefIdx,   0, sizeof ( m_aiNumRefIdx ));
+    ::memset( m_apcRefPicList, 0, sizeof (m_apcRefPicList));
+    ::memset( m_aiNumRefIdx,   0, sizeof ( m_aiNumRefIdx ));
 
+    if (!checkNumPocTotalCurr)
+    {
       return;
     }
-
-    m_aiNumRefIdx[REF_PIC_LIST_0] = getNumRefIdx(REF_PIC_LIST_0);
-    m_aiNumRefIdx[REF_PIC_LIST_1] = getNumRefIdx(REF_PIC_LIST_1);
   }
 
   TComPic*  pcRefPic= NULL;
@@ -343,11 +339,11 @@ Void TComSlice::setRefPicList( TComList<TComPic*>& rcListPic, Bool checkNumPocTo
   UInt NumPicLtCurr = 0;
   Int i;
 
-  for(i=0; i < m_pcRPS->getNumberOfNegativePictures(); i++)
+  for(i=0; i < m_pRPS->getNumberOfNegativePictures(); i++)
   {
-    if(m_pcRPS->getUsed(i))
+    if(m_pRPS->getUsed(i))
     {
-      pcRefPic = xGetRefPic(rcListPic, getPOC()+m_pcRPS->getDeltaPOC(i));
+      pcRefPic = xGetRefPic(rcListPic, getPOC()+m_pRPS->getDeltaPOC(i));
       pcRefPic->setIsLongTerm(0);
       pcRefPic->getPicYuvRec()->extendPicBorder();
       RefPicSetStCurr0[NumPicStCurr0] = pcRefPic;
@@ -356,11 +352,11 @@ Void TComSlice::setRefPicList( TComList<TComPic*>& rcListPic, Bool checkNumPocTo
     }
   }
 
-  for(; i < m_pcRPS->getNumberOfNegativePictures()+m_pcRPS->getNumberOfPositivePictures(); i++)
+  for(; i < m_pRPS->getNumberOfNegativePictures()+m_pRPS->getNumberOfPositivePictures(); i++)
   {
-    if(m_pcRPS->getUsed(i))
+    if(m_pRPS->getUsed(i))
     {
-      pcRefPic = xGetRefPic(rcListPic, getPOC()+m_pcRPS->getDeltaPOC(i));
+      pcRefPic = xGetRefPic(rcListPic, getPOC()+m_pRPS->getDeltaPOC(i));
       pcRefPic->setIsLongTerm(0);
       pcRefPic->getPicYuvRec()->extendPicBorder();
       RefPicSetStCurr1[NumPicStCurr1] = pcRefPic;
@@ -369,11 +365,11 @@ Void TComSlice::setRefPicList( TComList<TComPic*>& rcListPic, Bool checkNumPocTo
     }
   }
 
-  for(i = m_pcRPS->getNumberOfNegativePictures()+m_pcRPS->getNumberOfPositivePictures()+m_pcRPS->getNumberOfLongtermPictures()-1; i > m_pcRPS->getNumberOfNegativePictures()+m_pcRPS->getNumberOfPositivePictures()-1 ; i--)
+  for(i = m_pRPS->getNumberOfNegativePictures()+m_pRPS->getNumberOfPositivePictures()+m_pRPS->getNumberOfLongtermPictures()-1; i > m_pRPS->getNumberOfNegativePictures()+m_pRPS->getNumberOfPositivePictures()-1 ; i--)
   {
-    if(m_pcRPS->getUsed(i))
+    if(m_pRPS->getUsed(i))
     {
-      pcRefPic = xGetLongTermRefPic(rcListPic, m_pcRPS->getPOC(i), m_pcRPS->getCheckLTMSBPresent(i));
+      pcRefPic = xGetLongTermRefPic(rcListPic, m_pRPS->getPOC(i), m_pRPS->getCheckLTMSBPresent(i));
       pcRefPic->setIsLongTerm(1);
       pcRefPic->getPicYuvRec()->extendPicBorder();
       RefPicSetLtCurr[NumPicLtCurr] = pcRefPic;
@@ -381,9 +377,9 @@ Void TComSlice::setRefPicList( TComList<TComPic*>& rcListPic, Bool checkNumPocTo
     }
     if(pcRefPic==NULL)
     {
-      pcRefPic = xGetLongTermRefPic(rcListPic, m_pcRPS->getPOC(i), m_pcRPS->getCheckLTMSBPresent(i));
+      pcRefPic = xGetLongTermRefPic(rcListPic, m_pRPS->getPOC(i), m_pRPS->getCheckLTMSBPresent(i));
     }
-    pcRefPic->setCheckLTMSBPresent(m_pcRPS->getCheckLTMSBPresent(i));
+    pcRefPic->setCheckLTMSBPresent(m_pRPS->getCheckLTMSBPresent(i));
   }
 
   // ref_pic_list_init
@@ -403,18 +399,12 @@ Void TComSlice::setRefPicList( TComList<TComPic*>& rcListPic, Bool checkNumPocTo
 
     if (m_eSliceType == I_SLICE)
     {
-      ::memset( m_apcRefPicList, 0, sizeof (m_apcRefPicList));
-      ::memset( m_aiNumRefIdx,   0, sizeof ( m_aiNumRefIdx ));
-
       return;
     }
 
     assert(numPicTotalCurr > 0);
     // general tier and level limit:
     assert(numPicTotalCurr <= 8);
-
-    m_aiNumRefIdx[0] = getNumRefIdx(REF_PIC_LIST_0);
-    m_aiNumRefIdx[1] = getNumRefIdx(REF_PIC_LIST_1);
   }
 
   Int cIdx = 0;
@@ -484,9 +474,9 @@ Int TComSlice::getNumRpsCurrTempList() const
   {
     return 0;
   }
-  for(UInt i=0; i < m_pcRPS->getNumberOfNegativePictures()+ m_pcRPS->getNumberOfPositivePictures() + m_pcRPS->getNumberOfLongtermPictures(); i++)
+  for(UInt i=0; i < m_pRPS->getNumberOfNegativePictures()+ m_pRPS->getNumberOfPositivePictures() + m_pRPS->getNumberOfLongtermPictures(); i++)
   {
-    if(m_pcRPS->getUsed(i))
+    if(m_pRPS->getUsed(i))
     {
       numRpsCurrTempList++;
     }
@@ -723,7 +713,7 @@ Void TComSlice::copySliceInfo(TComSlice *pSrc)
   m_bRefenced            = pSrc->m_bRefenced;
 
   // access channel
-  m_pcRPS                = pSrc->m_pcRPS;
+  m_pRPS                = pSrc->m_pRPS;
   m_iLastIDR             = pSrc->m_iLastIDR;
 
   m_pcPic                = pSrc->m_pcPic;
@@ -779,9 +769,6 @@ Void TComSlice::copySliceInfo(TComSlice *pSrc)
   m_enableTMVPFlag                = pSrc->m_enableTMVPFlag;
   m_maxNumMergeCand               = pSrc->m_maxNumMergeCand;
   m_encCABACTableIdx              = pSrc->m_encCABACTableIdx;
-#if 1//OUTPUT_FRM_LEN
-  slice_len=pSrc->slice_len;
-#endif
 }
 
 
@@ -1287,7 +1274,9 @@ Void TComSlice::createExplicitReferencePictureSetFromReference( TComList<TComPic
   Int k = 0;
   Int nrOfNegativePictures = 0;
   Int nrOfPositivePictures = 0;
-  TComReferencePictureSet* pcRPS = this->getLocalRPS();
+  TComReferencePictureSet* pLocalRPS = this->getLocalRPS();
+  (*pLocalRPS)=TComReferencePictureSet();
+
   Bool irapIsInRPS = false; // Used when bEfficientFieldIRAPEnabled==true
 
   // loop through all pictures in the Reference Picture Set
@@ -1305,14 +1294,14 @@ Void TComSlice::createExplicitReferencePictureSetFromReference( TComList<TComPic
       {
         // This picture exists as a reference picture
         // and should be added to the explicit Reference Picture Set
-        pcRPS->setDeltaPOC(k, pReferencePictureSet->getDeltaPOC(i));
-        pcRPS->setUsed(k, pReferencePictureSet->getUsed(i) && (!isRAP));
+        pLocalRPS->setDeltaPOC(k, pReferencePictureSet->getDeltaPOC(i));
+        pLocalRPS->setUsed(k, pReferencePictureSet->getUsed(i) && (!isRAP));
         if (bEfficientFieldIRAPEnabled)
         {
-          pcRPS->setUsed(k, pcRPS->getUsed(k) && !(bUseRecoveryPoint && this->getPOC() > pocRandomAccess && this->getPOC() + pReferencePictureSet->getDeltaPOC(i) < pocRandomAccess) );
+          pLocalRPS->setUsed(k, pLocalRPS->getUsed(k) && !(bUseRecoveryPoint && this->getPOC() > pocRandomAccess && this->getPOC() + pReferencePictureSet->getDeltaPOC(i) < pocRandomAccess) );
         }
 
-        if(pcRPS->getDeltaPOC(k) < 0)
+        if(pLocalRPS->getDeltaPOC(k) < 0)
         {
           nrOfNegativePictures++;
         }
@@ -1339,24 +1328,24 @@ Void TComSlice::createExplicitReferencePictureSetFromReference( TComList<TComPic
       rpcPic = *(iterPic++);
       if(rpcPic->getPicSym()->getSlice(0)->getPOC() == this->getAssociatedIRAPPOC() && this->getAssociatedIRAPPOC() == this->getPOC()+1)
       {
-        pcRPS->setDeltaPOC(k, 1);
-        pcRPS->setUsed(k, true);
+        pLocalRPS->setDeltaPOC(k, 1);
+        pLocalRPS->setUsed(k, true);
         nrOfPositivePictures++;
         k ++;
         useNewRPS = true;
       }
     }
   }
-  pcRPS->setNumberOfNegativePictures(nrOfNegativePictures);
-  pcRPS->setNumberOfPositivePictures(nrOfPositivePictures);
-  pcRPS->setNumberOfPictures(nrOfNegativePictures+nrOfPositivePictures);
+  pLocalRPS->setNumberOfNegativePictures(nrOfNegativePictures);
+  pLocalRPS->setNumberOfPositivePictures(nrOfPositivePictures);
+  pLocalRPS->setNumberOfPictures(nrOfNegativePictures+nrOfPositivePictures);
   // This is a simplistic inter rps example. A smarter encoder will look for a better reference RPS to do the
   // inter RPS prediction with.  Here we just use the reference used by pReferencePictureSet.
   // If pReferencePictureSet is not inter_RPS_predicted, then inter_RPS_prediction is for the current RPS also disabled.
   if (!pReferencePictureSet->getInterRPSPrediction() || useNewRPS )
   {
-    pcRPS->setInterRPSPrediction(false);
-    pcRPS->setNumRefIdc(0);
+    pLocalRPS->setInterRPSPrediction(false);
+    pLocalRPS->setNumRefIdc(0);
   }
   else
   {
@@ -1369,11 +1358,11 @@ Void TComSlice::createExplicitReferencePictureSetFromReference( TComList<TComPic
     {
       Int deltaPOC = ((i != iRefPics)? pcRefRPS->getDeltaPOC(i) : 0);  // check if the reference abs POC is >= 0
       Int iRefIdc = 0;
-      for (j=0; j < pcRPS->getNumberOfPictures(); j++) // loop through the  pictures in the new RPS
+      for (j=0; j < pLocalRPS->getNumberOfPictures(); j++) // loop through the  pictures in the new RPS
       {
-        if ( (deltaPOC + deltaRPS) == pcRPS->getDeltaPOC(j))
+        if ( (deltaPOC + deltaRPS) == pLocalRPS->getDeltaPOC(j))
         {
-          if (pcRPS->getUsed(j))
+          if (pLocalRPS->getUsed(j))
           {
             iRefIdc = 1;
           }
@@ -1383,16 +1372,16 @@ Void TComSlice::createExplicitReferencePictureSetFromReference( TComList<TComPic
           }
         }
       }
-      pcRPS->setRefIdc(i, iRefIdc);
+      pLocalRPS->setRefIdc(i, iRefIdc);
       iNewIdc++;
     }
-    pcRPS->setInterRPSPrediction(true);
-    pcRPS->setNumRefIdc(iNewIdc);
-    pcRPS->setDeltaRPS(deltaRPS);
-    pcRPS->setDeltaRIdxMinus1(pReferencePictureSet->getDeltaRIdxMinus1() + this->getSPS()->getRPSList()->getNumberOfReferencePictureSets() - this->getRPSidx());
+    pLocalRPS->setInterRPSPrediction(true);
+    pLocalRPS->setNumRefIdc(iNewIdc);
+    pLocalRPS->setDeltaRPS(deltaRPS);
+    pLocalRPS->setDeltaRIdxMinus1(pReferencePictureSet->getDeltaRIdxMinus1() + this->getSPS()->getRPSList()->getNumberOfReferencePictureSets() - this->getRPSidx());
   }
 
-  this->setRPS(pcRPS);
+  this->setRPS(pLocalRPS);
   this->setRPSidx(-1);
 }
 
@@ -1560,7 +1549,7 @@ TComSPS::TComSPS()
 
   for ( Int i = 0; i < MAX_TLAYER; i++ )
   {
-    m_uiMaxLatencyIncrease[i] = 0;
+    m_uiMaxLatencyIncreasePlus1[i] = 0;
     m_uiMaxDecPicBuffering[i] = 1;
     m_numReorderPics[i]       = 0;
   }
@@ -1612,7 +1601,7 @@ TComPPS::TComPPS()
 , m_chromaCrQpOffset                 (0)
 , m_numRefIdxL0DefaultActive         (1)
 , m_numRefIdxL1DefaultActive         (1)
-, m_TransquantBypassEnableFlag       (false)
+, m_TransquantBypassEnabledFlag      (false)
 , m_useTransformSkip                 (false)
 , m_dependentSliceSegmentsEnabledFlag(false)
 , m_tilesEnabledFlag                 (false)
@@ -1621,7 +1610,7 @@ TComPPS::TComPPS()
 , m_uniformSpacingFlag               (false)
 , m_numTileColumnsMinus1             (0)
 , m_numTileRowsMinus1                (0)
-, m_signHideFlag                     (false)
+, m_signDataHidingEnabledFlag        (false)
 , m_cabacInitPresentFlag             (false)
 , m_sliceHeaderExtensionPresentFlag  (false)
 , m_loopFilterAcrossSlicesEnabledFlag(false)
@@ -1923,13 +1912,13 @@ Void TComScalingList::outputScalingLists(std::ostream &os) const
   }
 }
 
-Bool TComScalingList::xParseScalingList(Char* pchFile)
+Bool TComScalingList::xParseScalingList(const std::string &fileName)
 {
   static const Int LINE_SIZE=1024;
   FILE *fp = NULL;
-  Char line[LINE_SIZE];
+  TChar line[LINE_SIZE];
 
-  if (pchFile == NULL)
+  if (fileName.empty())
   {
     fprintf(stderr, "Error: no scaling list file specified. Help on scaling lists being output\n");
     outputScalingListHelp(std::cout);
@@ -1938,9 +1927,9 @@ Bool TComScalingList::xParseScalingList(Char* pchFile)
     exit (1);
     return true;
   }
-  else if ((fp = fopen(pchFile,"r")) == (FILE*)NULL)
+  else if ((fp = fopen(fileName.c_str(),"r")) == (FILE*)NULL)
   {
-    fprintf(stderr, "Error: cannot open scaling list file %s for reading\n",pchFile);
+    fprintf(stderr, "Error: cannot open scaling list file %s for reading\n", fileName.c_str());
     return true;
   }
 
@@ -1968,8 +1957,8 @@ Bool TComScalingList::xParseScalingList(Char* pchFile)
           Bool bFound=false;
           while ((!feof(fp)) && (!bFound))
           {
-            Char *ret = fgets(line, LINE_SIZE, fp);
-            Char *findNamePosition= ret==NULL ? NULL : strstr(line, MatrixType[sizeIdc][listIdc]);
+            TChar *ret = fgets(line, LINE_SIZE, fp);
+            TChar *findNamePosition= ret==NULL ? NULL : strstr(line, MatrixType[sizeIdc][listIdc]);
             // This could be a match against the DC string as well, so verify it isn't
             if (findNamePosition!= NULL && (MatrixType_DC[sizeIdc][listIdc]==NULL || strstr(line, MatrixType_DC[sizeIdc][listIdc])==NULL))
             {
@@ -1978,7 +1967,7 @@ Bool TComScalingList::xParseScalingList(Char* pchFile)
           }
           if (!bFound)
           {
-            fprintf(stderr, "Error: cannot find Matrix %s from scaling list file %s\n", MatrixType[sizeIdc][listIdc], pchFile);
+            fprintf(stderr, "Error: cannot find Matrix %s from scaling list file %s\n", MatrixType[sizeIdc][listIdc], fileName.c_str());
             return true;
           }
         }
@@ -1987,12 +1976,12 @@ Bool TComScalingList::xParseScalingList(Char* pchFile)
           Int data;
           if (fscanf(fp, "%d,", &data)!=1)
           {
-            fprintf(stderr, "Error: cannot read value #%d for Matrix %s from scaling list file %s at file position %ld\n", i, MatrixType[sizeIdc][listIdc], pchFile, ftell(fp));
+            fprintf(stderr, "Error: cannot read value #%d for Matrix %s from scaling list file %s at file position %ld\n", i, MatrixType[sizeIdc][listIdc], fileName.c_str(), ftell(fp));
             return true;
           }
           if (data<0 || data>255)
           {
-            fprintf(stderr, "Error: QMatrix entry #%d of value %d for Matrix %s from scaling list file %s at file position %ld is out of range (0 to 255)\n", i, data, MatrixType[sizeIdc][listIdc], pchFile, ftell(fp));
+            fprintf(stderr, "Error: QMatrix entry #%d of value %d for Matrix %s from scaling list file %s at file position %ld is out of range (0 to 255)\n", i, data, MatrixType[sizeIdc][listIdc], fileName.c_str(), ftell(fp));
             return true;
           }
           src[i] = data;
@@ -2008,8 +1997,8 @@ Bool TComScalingList::xParseScalingList(Char* pchFile)
             Bool bFound=false;
             while ((!feof(fp)) && (!bFound))
             {
-              Char *ret = fgets(line, LINE_SIZE, fp);
-              Char *findNamePosition= ret==NULL ? NULL : strstr(line, MatrixType_DC[sizeIdc][listIdc]);
+              TChar *ret = fgets(line, LINE_SIZE, fp);
+              TChar *findNamePosition= ret==NULL ? NULL : strstr(line, MatrixType_DC[sizeIdc][listIdc]);
               if (findNamePosition!= NULL)
               {
                 // This won't be a match against the non-DC string.
@@ -2018,19 +2007,19 @@ Bool TComScalingList::xParseScalingList(Char* pchFile)
             }
             if (!bFound)
             {
-              fprintf(stderr, "Error: cannot find DC Matrix %s from scaling list file %s\n", MatrixType_DC[sizeIdc][listIdc], pchFile);
+              fprintf(stderr, "Error: cannot find DC Matrix %s from scaling list file %s\n", MatrixType_DC[sizeIdc][listIdc], fileName.c_str());
               return true;
             }
           }
           Int data;
           if (fscanf(fp, "%d,", &data)!=1)
           {
-            fprintf(stderr, "Error: cannot read DC %s from scaling list file %s at file position %ld\n", MatrixType_DC[sizeIdc][listIdc], pchFile, ftell(fp));
+            fprintf(stderr, "Error: cannot read DC %s from scaling list file %s at file position %ld\n", MatrixType_DC[sizeIdc][listIdc], fileName.c_str(), ftell(fp));
             return true;
           }
           if (data<0 || data>255)
           {
-            fprintf(stderr, "Error: DC value %d for Matrix %s from scaling list file %s at file position %ld is out of range (0 to 255)\n", data, MatrixType[sizeIdc][listIdc], pchFile, ftell(fp));
+            fprintf(stderr, "Error: DC value %d for Matrix %s from scaling list file %s at file position %ld is out of range (0 to 255)\n", data, MatrixType[sizeIdc][listIdc], fileName.c_str(), ftell(fp));
             return true;
           }
           //overwrite DC value when size of matrix is larger than 16x16
@@ -2195,6 +2184,18 @@ Bool ParameterSetManager::activatePPS(Int ppsId, Bool isIRAP)
   return false;
 }
 
+template <>
+Void ParameterSetMap<TComPPS>::setID(TComPPS* parameterSet, const Int psId)
+{
+  parameterSet->setPPSId(psId);
+}
+
+template <>
+Void ParameterSetMap<TComSPS>::setID(TComSPS* parameterSet, const Int psId)
+{
+  parameterSet->setSPSId(psId);
+}
+
 ProfileTierLevel::ProfileTierLevel()
   : m_profileSpace    (0)
   , m_tierFlag        (Level::MAIN)
@@ -2214,24 +2215,24 @@ TComPTL::TComPTL()
   ::memset(m_subLayerLevelPresentFlag,   0, sizeof(m_subLayerLevelPresentFlag  ));
 }
 
-Void calculateParameterSetChangedFlag(Bool &bChanged, const std::vector<UChar> *pOldData, const std::vector<UChar> &newData)
+Void calculateParameterSetChangedFlag(Bool &bChanged, const std::vector<UChar> *pOldData, const std::vector<UChar> *pNewData)
 {
   if (!bChanged)
   {
-    if ((pOldData==0 && pOldData!=0) || (pOldData!=0 && pOldData==0))
+    if ((pOldData==0 && pNewData!=0) || (pOldData!=0 && pNewData==0))
     {
       bChanged=true;
     }
-    else if (pOldData!=0 && pOldData!=0)
+    else if (pOldData!=0 && pNewData!=0)
     {
       // compare the two
-      if (pOldData->size() != pOldData->size())
+      if (pOldData->size() != pNewData->size())
       {
         bChanged=true;
       }
       else
       {
-        const UChar *pNewDataArray=&(newData)[0];
+        const UChar *pNewDataArray=&(*pNewData)[0];
         const UChar *pOldDataArray=&(*pOldData)[0];
         if (memcmp(pOldDataArray, pNewDataArray, pOldData->size()))
         {
@@ -2243,813 +2244,3 @@ Void calculateParameterSetChangedFlag(Bool &bChanged, const std::vector<UChar> *
 }
 
 //! \}
-=======
-/* ====================================================================================================================
-
-  The copyright in this software is being made available under the License included below.
-  This software may be subject to other third party and   contributor rights, including patent rights, and no such
-  rights are granted under this license.
-
-  Copyright (c) 2010, SAMSUNG ELECTRONICS CO., LTD. and BRITISH BROADCASTING CORPORATION
-  All rights reserved.
-
-  Redistribution and use in source and binary forms, with or without modification, are permitted only for
-  the purpose of developing standards within the Joint Collaborative Team on Video Coding and for testing and
-  promoting such standards. The following conditions are required to be met:
-
-    * Redistributions of source code must retain the above copyright notice, this list of conditions and
-      the following disclaimer.
-    * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and
-      the following disclaimer in the documentation and/or other materials provided with the distribution.
-    * Neither the name of SAMSUNG ELECTRONICS CO., LTD. nor the name of the BRITISH BROADCASTING CORPORATION
-      may be used to endorse or promote products derived from this software without specific prior written permission.
-
-  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
-  INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
- * ====================================================================================================================
-*/
-
-/** \file     TComSlice.cpp
-    \brief    slice header and SPS class
-*/
-
-#include "CommonDef.h"
-#include "TComSlice.h"
-#include "TComPic.h"
-
-TComSlice::TComSlice()
-{
-  m_iPOC                = 0;
-  m_eSliceType          = I_SLICE;
-  m_iSliceQp            = 0;
-  m_iSymbolMode         = 1;
-  m_bMultiCodeword      = false;
-  m_uiMaxPIPEDelay      = 0;
-  m_uiBalancedCPUs      = 8;
-  m_aiNumRefIdx[0]      = 0;
-  m_aiNumRefIdx[1]      = 0;
-  m_bLoopFilterDisable  = false;
-
-  m_bDRBFlag            = true;
-  m_eERBIndex           = ERB_NONE;
-
-  m_iSliceQpDelta       = 0;
-
-  m_iDepth              = 0;
-
-  m_pcPic               = NULL;
-  m_bRefenced           = false;
-#ifdef ROUNDING_CONTROL_BIPRED
-  m_bRounding			= false;
-#endif
-  m_uiColDir = 0;
-
-  m_aiWPmode[0]    = 0;
-  m_aiWPmode[1]    = 0;
-  m_iRFmode    = 0;
-
-  m_iLumaLogWeightDenom     = 5;
-  m_iChromaLogWeightDenom   = 5;
-  m_iWPLumaRound            = 1 << (m_iLumaLogWeightDenom-1);
-  m_iWPChromaRound          = 1 << (m_iChromaLogWeightDenom-1);
-
-  m_auiAddRefCnt[0]  = 0;
-  m_auiAddRefCnt[1]  = 0;
-
-#ifdef EDGE_BASED_PREDICTION
-    m_bEdgePredictionEnable = false;
-#endif //EDGE_BASED_PREDICTION
-  initEqualRef();
-#ifdef DCM_PBIC
-  xCreateZTrees();
-#endif
-}
-
-TComSlice::~TComSlice()
-{
-#ifdef DCM_PBIC
-  xDeleteZTrees();
-#endif
-}
-
-#ifdef DCM_PBIC
-Void TComSlice::xCreateZTrees()
-{
-  Int* piPattern               = NULL;
-  Int  aiPattern_MVDICDUNI[12] = {4, 1, 1, 0, 0, 1, 0, 0, 0, 1, 2, 3};
-  Int  aiPattern_MVDICDBI [21] = {7, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 2, 1, 3, 4, 5, 6};
-  Int  aiPattern_MVDUNI   [ 6] = {2, 1, 0, 0, 0, 1};
-  Int  aiPattern_MVDBI    [12] = {4, 1, 1, 0, 0, 1, 0, 0, 0, 2, 1, 3};
-
-  for (UInt uiZTreeIdx = 0; uiZTreeIdx < MAX_NUM_ZTREE; uiZTreeIdx++)
-  {
-    switch (uiZTreeIdx)
-    {
-    case IDX_ZTREE_MVDICDUNI:
-      piPattern = aiPattern_MVDICDUNI;
-      m_apcZTree[uiZTreeIdx] = new TComZeroTree(piPattern);
-      break;
-    case IDX_ZTREE_MVDICDBI:
-      piPattern = aiPattern_MVDICDBI;
-      m_apcZTree[uiZTreeIdx] = new TComZeroTree(piPattern);
-      break;
-    case IDX_ZTREE_MVDUNI:
-      piPattern = aiPattern_MVDUNI;
-      m_apcZTree[uiZTreeIdx] = new TComZeroTree(piPattern);
-      break;
-    case IDX_ZTREE_MVDBI:
-      piPattern = aiPattern_MVDBI;
-      m_apcZTree[uiZTreeIdx] = new TComZeroTree(piPattern);
-      break;
-    default:
-      m_apcZTree[uiZTreeIdx] = NULL;
-      break;
-    }
-  }
-}
-
-Void TComSlice::xDeleteZTrees()
-{
-  for (UInt uiZTreeIdx = 0; uiZTreeIdx < MAX_NUM_ZTREE; uiZTreeIdx++)
-  {
-    if ( m_apcZTree[uiZTreeIdx] != NULL )
-      delete m_apcZTree[uiZTreeIdx];
-  }
-}
-#endif
-
-Void TComSlice::initSlice()
-{
-  m_aiNumRefIdx[0]      = 0;
-  m_aiNumRefIdx[1]      = 0;
-
-  m_bDRBFlag            = true;
-  m_eERBIndex           = ERB_NONE;
-
-#if HHI_INTERP_FILTER
-  m_iInterpFilterType   = IPF_SAMSUNG_DIF_DEFAULT;
-#endif
-
-  m_uiColDir = 0;
-
-  m_aiWPmode[0]    = 0;
-  m_aiWPmode[1]    = 0;
-  m_iRFmode    = 0;
-
-  m_iLumaLogWeightDenom     = 5;
-  m_iChromaLogWeightDenom   = 5;
-  m_iWPLumaRound            = 1 << (m_iLumaLogWeightDenom-1);
-  m_iWPChromaRound          = 1 << (m_iChromaLogWeightDenom-1);
-
-  m_auiAddRefCnt[0]  = 0;
-  m_auiAddRefCnt[1]  = 0;
-#ifdef QC_SIFO_PRED
-	m_bUseSIFO_Pred    = true;
-#endif
-  initEqualRef();
-}
-
-Void  TComSlice::sortPicList        (TComList<TComPic*>& rcListPic)
-{
-  TComPic*    pcPicExtract;
-  TComPic*    pcPicInsert;
-
-  TComList<TComPic*>::iterator    iterPicExtract;
-  TComList<TComPic*>::iterator    iterPicExtract_1;
-  TComList<TComPic*>::iterator    iterPicInsert;
-
-  for (Int i = 1; i < (Int)(rcListPic.size()); i++)
-  {
-    iterPicExtract = rcListPic.begin();
-    for (Int j = 0; j < i; j++) iterPicExtract++;
-    pcPicExtract = *(iterPicExtract);
-
-    iterPicInsert = rcListPic.begin();
-    while (iterPicInsert != iterPicExtract)
-    {
-      pcPicInsert = *(iterPicInsert);
-      if (pcPicInsert->getPOC() >= pcPicExtract->getPOC())
-      {
-        break;
-      }
-
-      iterPicInsert++;
-    }
-
-    iterPicExtract_1 = iterPicExtract;    iterPicExtract_1++;
-
-    //  swap iterPicExtract and iterPicInsert, iterPicExtract = curr. / iterPicInsert = insertion position
-    rcListPic.insert (iterPicInsert, iterPicExtract, iterPicExtract_1);
-    rcListPic.erase  (iterPicExtract);
-  }
-}
-
-TComPic* TComSlice::xGetRefPic (TComList<TComPic*>& rcListPic,
-                                Bool                bDRBFlag,
-                                ERBIndex            eERBIndex,
-                                UInt                uiPOCCurr,
-                                RefPicList          eRefPicList,
-                                UInt                uiNthRefPic)
-{
-  //  find current position
-  TComList<TComPic*>::iterator  iterPic = rcListPic.begin();
-  TComPic*                      pcRefPic   = NULL;
-
-  TComPic*                      pcPic = *(iterPic);
-  while ( (pcPic->getPOC() != (Int)uiPOCCurr) && (iterPic != rcListPic.end()) )
-  {
-    iterPic++;
-    pcPic = *(iterPic);
-  }
-  assert (pcPic->getPOC() == (Int)uiPOCCurr);
-
-  //  find n-th reference picture with bDRBFlag and eERBIndex
-  UInt  uiCount = 0;
-
-  if( eRefPicList == REF_PIC_LIST_0 )
-  {
-    while(1)
-    {
-      if (iterPic == rcListPic.begin())
-        break;
-
-      iterPic--;
-      pcPic = *(iterPic);
-      if( ( !pcPic->getReconMark()                        ) ||
-          ( bDRBFlag  != pcPic->getSlice()->getDRBFlag()  ) ||
-          ( eERBIndex != pcPic->getSlice()->getERBIndex() ) )
-        continue;
-
-      if( !pcPic->getSlice()->isReferenced() )
-        continue;
-
-      uiCount++;
-      if (uiCount == uiNthRefPic)
-      {
-        pcRefPic = pcPic;
-        return  pcRefPic;
-      }
-    }
-
-    if ( !m_pcSPS->getUseLDC() )
-    {
-
-    iterPic = rcListPic.begin();
-    pcPic = *(iterPic);
-    while ( (pcPic->getPOC() != (Int)uiPOCCurr) && (iterPic != rcListPic.end()) )
-    {
-      iterPic++;
-      pcPic = *(iterPic);
-    }
-    assert (pcPic->getPOC() == (Int)uiPOCCurr);
-
-    while(1)
-    {
-      iterPic++;
-      if (iterPic == rcListPic.end())
-        break;
-
-      pcPic = *(iterPic);
-      if( ( !pcPic->getReconMark()                        ) ||
-          ( bDRBFlag  != pcPic->getSlice()->getDRBFlag()  ) ||
-          ( eERBIndex != pcPic->getSlice()->getERBIndex() ) )
-        continue;
-
-      if( !pcPic->getSlice()->isReferenced() )
-        continue;
-
-      uiCount++;
-      if (uiCount == uiNthRefPic)
-      {
-        pcRefPic = pcPic;
-        return  pcRefPic;
-      }
-    }
-  }
-  }
-  else
-  {
-    while(1)
-    {
-      iterPic++;
-      if (iterPic == rcListPic.end())
-        break;
-
-      pcPic = *(iterPic);
-      if( ( !pcPic->getReconMark()                        ) ||
-          ( bDRBFlag  != pcPic->getSlice()->getDRBFlag()  ) ||
-          ( eERBIndex != pcPic->getSlice()->getERBIndex() ) )
-        continue;
-
-      if( !pcPic->getSlice()->isReferenced() )
-        continue;
-
-      uiCount++;
-      if (uiCount == uiNthRefPic)
-      {
-        pcRefPic = pcPic;
-        return  pcRefPic;
-      }
-    }
-
-    iterPic = rcListPic.begin();
-    pcPic = *(iterPic);
-    while ( (pcPic->getPOC() != (Int)uiPOCCurr) && (iterPic != rcListPic.end()) )
-    {
-      iterPic++;
-      pcPic = *(iterPic);
-    }
-    assert (pcPic->getPOC() == (Int)uiPOCCurr);
-
-    while(1)
-    {
-      if (iterPic == rcListPic.begin())
-        break;
-
-      iterPic--;
-      pcPic = *(iterPic);
-      if( ( !pcPic->getReconMark()                        ) ||
-          ( bDRBFlag  != pcPic->getSlice()->getDRBFlag()  ) ||
-          ( eERBIndex != pcPic->getSlice()->getERBIndex() ) )
-        continue;
-
-      if( !pcPic->getSlice()->isReferenced() )
-        continue;
-
-      uiCount++;
-      if (uiCount == uiNthRefPic)
-      {
-        pcRefPic = pcPic;
-        return  pcRefPic;
-      }
-    }
-  }
-
-  return  pcRefPic;
-}
-
-Void TComSlice::setRefPOCList       ()
-{
-  for (Int iDir = 0; iDir < 2; iDir++)
-  for (Int iNumRefIdx = 0; iNumRefIdx < m_aiNumRefIdx[iDir]; iNumRefIdx++)
-  {
-    m_aiRefPOCList[iDir][iNumRefIdx] = m_apcRefPicList[iDir][iNumRefIdx]->getPOC();
-  }
-}
-
-Void TComSlice::setRefPicList       ( TComList<TComPic*>& rcListPic )
-{
-  if (m_eSliceType == I_SLICE)
-  {
-    ::memset( m_apcRefPicList, 0, sizeof (m_apcRefPicList));
-    ::memset( m_aiNumRefIdx,   0, sizeof ( m_aiNumRefIdx ));
-
-    return;
-  }
-
-  m_aiNumRefIdx[0] = Min ( m_aiNumRefIdx[0], (Int)(rcListPic.size())-1 );
-  m_aiNumRefIdx[1] = Min ( m_aiNumRefIdx[1], (Int)(rcListPic.size())-1 );
-
-  sortPicList(rcListPic);
-
-  TComPic*  pcRefPic;
-  for (Int n = 0; n < 2; n++)
-  {
-    RefPicList  eRefPicList = (RefPicList)n;
-
-    UInt  uiOrderDRB  = 1;
-    UInt  uiOrderERB  = 1;
-    Int   iRefIdx     = 0;
-    UInt  uiActualListSize = 0;
-
-    if ( m_eSliceType == P_SLICE && eRefPicList == REF_PIC_LIST_1 )
-    {
-      m_aiNumRefIdx[eRefPicList] = 0;
-      ::memset( m_apcRefPicList[eRefPicList], 0, sizeof(m_apcRefPicList[eRefPicList]));
-      break;
-    }
-
-    //  First DRB
-    pcRefPic = xGetRefPic(rcListPic, true, ERB_NONE, m_iPOC, eRefPicList, uiOrderDRB);
-    if (pcRefPic != NULL)
-    {
-      m_apcRefPicList[eRefPicList][iRefIdx] = pcRefPic;
-
-#if HHI_INTERP_FILTER
-      pcRefPic->getPicYuvRec()    ->extendPicBorder( getInterpFilterType() );
-      pcRefPic->getPicYuvRecFilt()->extendPicBorder( getInterpFilterType() );
-#else
-      pcRefPic->getPicYuvRec()->extendPicBorder();
-#endif
-
-      iRefIdx++;
-      uiOrderDRB++;
-      uiActualListSize++;
-    }
-
-    if ( (Int)uiActualListSize >= m_aiNumRefIdx[eRefPicList] )
-    {
-      m_aiNumRefIdx[eRefPicList] = uiActualListSize;
-      continue;
-    }
-
-    // Long term reference
-    // Should be enabled to support long term refernce
-    //*
-    //  First ERB
-    pcRefPic = xGetRefPic(rcListPic, false, ERB_LTR, m_iPOC, eRefPicList, uiOrderERB);
-    if (pcRefPic != NULL)
-    {
-      Bool  bChangeDrbErb = false;
-      if      (iRefIdx > 0 && eRefPicList == REF_PIC_LIST_0 && pcRefPic->getPOC() > m_apcRefPicList[eRefPicList][iRefIdx-1]->getPOC())
-      {
-        bChangeDrbErb = true;
-      }
-      else if (iRefIdx > 0 && eRefPicList == REF_PIC_LIST_1 && pcRefPic->getPOC() < m_apcRefPicList[eRefPicList][iRefIdx-1]->getPOC())
-      {
-        bChangeDrbErb = true;
-      }
-
-      if ( bChangeDrbErb)
-      {
-        m_apcRefPicList[eRefPicList][iRefIdx]   = m_apcRefPicList[eRefPicList][iRefIdx-1];
-        m_apcRefPicList[eRefPicList][iRefIdx-1] = pcRefPic;
-      }
-      else
-      {
-        m_apcRefPicList[eRefPicList][iRefIdx] = pcRefPic;
-      }
-
-#if HHI_INTERP_FILTER
-      pcRefPic->getPicYuvRec()    ->extendPicBorder( getInterpFilterType() );
-      pcRefPic->getPicYuvRecFilt()->extendPicBorder( getInterpFilterType() );
-#else
-      pcRefPic->getPicYuvRec()->extendPicBorder();
-#endif
-
-      iRefIdx++;
-      uiOrderERB++;
-      uiActualListSize++;
-    }
-    //*/
-
-    // Short term reference
-    //  Residue DRB
-    UInt  uiBreakCount = 17 - iRefIdx;
-    while (1)
-    {
-      uiBreakCount--;
-      if ( (Int)uiActualListSize >= m_aiNumRefIdx[eRefPicList] || uiBreakCount == 0 )
-      {
-        break;
-      }
-
-      pcRefPic = xGetRefPic(rcListPic, true, ERB_NONE, m_iPOC, eRefPicList, uiOrderDRB);
-      if (pcRefPic != NULL)
-      {
-        uiOrderDRB++;
-
-        // Not same level reference use
-        /*
-        Bool b = false;
-        Int iRefPoc = pcRefPic->getPOC();
-        Int iCnt = 1;
-        while(1)
-        {
-          if( iRefPoc & iCnt )
-          {
-            b = true;
-            break;
-          }
-          else if( m_iPOC & iCnt )
-          {
-            break;
-          }
-          iCnt<<=1;
-        }
-        if( b )
-        {
-          continue;
-        }
-        //*/
-
-        // Key frames always referenced
-
-
-
-
-        // If to support different reference indexing algorithm for multiple reference indexing in short term reference,
-        // this code should be fixed.
-        /*
-        //if ( m_eSliceType == B_SLICE && (pcRefPic->getPOC() - m_iPOC)%2 == 0)
-        TComPic*  pc2RefPic = m_apcRefPicList[eRefPicList][0]->getSlice()->getRefPic(eRefPicList, 0);
-        if ( pc2RefPic != pcRefPic )
-        {
-          continue;
-        }
-        //*/
-      }
-
-      if (pcRefPic != NULL)
-      {
-        m_apcRefPicList[eRefPicList][iRefIdx] = pcRefPic;
-
-#if HHI_INTERP_FILTER
-        pcRefPic->getPicYuvRec()    ->extendPicBorder( getInterpFilterType() );
-        pcRefPic->getPicYuvRecFilt()->extendPicBorder( getInterpFilterType() );
-#else
-        pcRefPic->getPicYuvRec()->extendPicBorder();
-#endif
-        iRefIdx++;
-        uiActualListSize++;
-      }
-    }
-
-    m_aiNumRefIdx[eRefPicList] = uiActualListSize;
-  }
-}
-
-Void TComSlice::initEqualRef()
-{
-  for (Int iDir = 0; iDir < 2; iDir++)
-  for (Int iRefIdx1 = 0; iRefIdx1 < MAX_NUM_REF+GRF_MAX_NUM_EFF; iRefIdx1++)
-  for (Int iRefIdx2 = iRefIdx1; iRefIdx2 < MAX_NUM_REF+GRF_MAX_NUM_EFF; iRefIdx2++)
-  {
-    m_abEqualRef[iDir][iRefIdx1][iRefIdx2] = m_abEqualRef[iDir][iRefIdx2][iRefIdx1] = (iRefIdx1 == iRefIdx2? true : false);
-  }
-}
-
-Void TComSlice::setVirtRefBuffer(TComPic* pSrc[2][GRF_MAX_NUM_EFF])
-{
-  for (Int i=0; i<GRF_MAX_NUM_EFF; i++)
-  for (Int j=0; j<2; j++)
-  {
-    m_apcVirtPic[j][i] = pSrc[j][i];
-  }
-}
-
-Void TComSlice::linkVirtRefPic()
-{
-  Int numRefIdxN,numRefIdx, n, i;
-  Int numDir = ((getSliceType()) == P_SLICE) ? 1 : 2;
-  RefPicList eRefPicList;
-
-  for ( n=0; n<numDir; n++ )
-  {
-    eRefPicList = (RefPicList)n;
-    numRefIdxN  = getAddRefCnt(eRefPicList);
-    numRefIdx   = getNumRefIdx(eRefPicList);
-
-    for ( i=0; i<numRefIdxN; i++ )
-    {
-      setRefPic(m_apcVirtPic[n][i], eRefPicList, numRefIdx+i);
-
-#if HHI_INTERP_FILTER
-      m_apcVirtPic[n][i]->getPicYuvRec()    ->extendPicBorder( getInterpFilterType() );
-      m_apcVirtPic[n][i]->getPicYuvRecFilt()->extendPicBorder( getInterpFilterType() );
-#else
-      m_apcVirtPic[n][i]->getPicYuvRec()->extendPicBorder();
-#endif
-
-      setEqualRef(eRefPicList, 0, numRefIdx+i, true);
-    }
-    setNumRefIdx(eRefPicList, numRefIdx+numRefIdxN);
-  }
-}
-
-Void TComSlice::removeEffectMode(RefPicList e, EFF_MODE eEffMode)
-{
-  Int iPosIdx = 0, iTmpIdx;
-
-  for (iTmpIdx = 0; iTmpIdx < m_auiAddRefCnt[e]; iTmpIdx++)
-  {
-    if(m_aeEffectMode[e][iTmpIdx] == eEffMode)
-    {
-      iPosIdx = iTmpIdx;
-      break;
-    }
-  }
-
-  if (iTmpIdx >= m_auiAddRefCnt[e]) return;
-
-  m_auiAddRefCnt[e]--;
-
-  for (iTmpIdx = iPosIdx; iTmpIdx < m_auiAddRefCnt[e]; iTmpIdx++)
-  {
-    m_aeEffectMode[e][iTmpIdx] = m_aeEffectMode[e][iTmpIdx+1];
-    m_apcVirtPic[e][iTmpIdx] = m_apcVirtPic[e][iTmpIdx+1];
-  }
-}
-
-Void TComSlice::initWPParam( RefPicList eRefPicList, EFF_MODE eEffMode, Int colorChannel)
-{
-  Int iDefaultWeight;
-
-  if (colorChannel == 0)  // y
-  {
-    iDefaultWeight = 1 << m_iLumaLogWeightDenom;
-  }
-  else if (colorChannel == 1) // u
-  {
-    iDefaultWeight = 1 << m_iChromaLogWeightDenom;
-  }
-  else  // v
-  {
-    iDefaultWeight = 1 << m_iChromaLogWeightDenom;
-  }
-
-  Int iDefaultOffset = 0;
-
-  setWPWeight(eRefPicList, eEffMode, colorChannel, iDefaultWeight);
-  setWPOffset(eRefPicList, eEffMode, colorChannel, iDefaultOffset);
-}
-
-Void TComSlice::initWPAllParam( RefPicList eRefPicList, EFF_MODE eEffMode)
-{
-  for (Int colorChannel = 0; colorChannel < 3; colorChannel++)
-  {
-    initWPParam(eRefPicList, eEffMode, colorChannel);
-  }
-}
-
-Bool TComSlice::isEqualWPParam( RefPicList e, EFF_MODE eEffMode1, EFF_MODE eEffMode2, Int colorChannel)
-{
-  if (eEffMode1 == eEffMode2) return true;
-
-  Int iWeight1, iOffset1, iWeight2, iOffset2;
-
-  if (colorChannel == 0)  // y
-  {
-    iWeight1 = iWeight2 = 1 << m_iLumaLogWeightDenom;
-  }
-  else if (colorChannel == 1) // u
-  {
-    iWeight1 = iWeight2 = 1 << m_iChromaLogWeightDenom;
-  }
-  else  // v
-  {
-    iWeight1 = iWeight2 = 1 << m_iChromaLogWeightDenom;
-  }
-  iOffset1 = iOffset2 = 0;
-
-  if (eEffMode1 != EFF_NONE)
-  {
-    iWeight1 = getWPWeight(e, eEffMode1, colorChannel);
-    iOffset1 = getWPOffset(e, eEffMode1, colorChannel);
-  }
-
-  if (eEffMode2 != EFF_NONE)
-  {
-    iWeight2 = getWPWeight(e, eEffMode2, colorChannel);
-    iOffset2 = getWPOffset(e, eEffMode2, colorChannel);
-  }
-
-  return ( (iWeight1 == iWeight2) && (iOffset1 == iOffset2) );
-}
-
-Bool TComSlice::isEqualWPAllParam( RefPicList e, EFF_MODE eEffMode1, EFF_MODE eEffMode2)
-{
-  if (eEffMode1 == eEffMode2) return true;
-
-  for (Int colorChannel = 0; colorChannel < 3; colorChannel++)
-  {
-    if (!isEqualWPParam(e, eEffMode1, eEffMode2, colorChannel)) return false;
-  }
-
-  return true;
-}
-
-Void TComSlice::generateWPSlice( RefPicList e, EFF_MODE eEffMode, UInt uiInsertIdx)
-{
-  assert( eEffMode >= EFF_WP_SO && eEffMode <= EFF_WP_O );
-
-  Int x, y, iWidth, iHeight, iStride, iWeight, iOffset;
-  TComPicYuv* pcPicYuvRef;
-  Pel *pDst, *pSrc;
-
-  pcPicYuvRef = getRefPic(e, 0)->getPicYuvRec();
-
-  m_apcVirtPic[e][uiInsertIdx]->getSlice()->setPOC( getRefPic(e, 0)->getPOC() );
-
-  // Luma
-  iWidth  = pcPicYuvRef->getWidth();
-  iHeight = pcPicYuvRef->getHeight();
-  iStride = pcPicYuvRef->getStride();
-  pSrc    = pcPicYuvRef->getLumaAddr();
-  pDst    = m_apcVirtPic[e][uiInsertIdx]->getPicYuvRec()->getLumaAddr();
-
-  iWeight = getWPWeight(e, eEffMode, 0);
-  iOffset = getWPOffset(e, eEffMode, 0);
-
-
-  for (y=0; y<iHeight; y++) {
-    for (x=0; x<iWidth; x++) {
-      pDst[x] = Clip( ((iWeight*pSrc[x] + m_iWPLumaRound) >> m_iLumaLogWeightDenom) + iOffset );
-    }
-    pDst += iStride;
-    pSrc += iStride;
-  }
-
-  // Chroma
-  iWidth  >>= 1;
-  iHeight >>= 1;
-  iStride >>= 1;
-
-  iWeight = getWPWeight(e, eEffMode, 1);
-  iOffset = getWPOffset(e, eEffMode, 1);
-
-  pSrc    = pcPicYuvRef->getCbAddr();
-  pDst    = m_apcVirtPic[e][uiInsertIdx]->getPicYuvRec()->getCbAddr();
-
-  for (y=0; y<iHeight; y++) {
-    for (x=0; x<iWidth; x++) {
-      pDst[x] = Clip( ((iWeight*pSrc[x] + m_iWPChromaRound) >> m_iChromaLogWeightDenom) + iOffset );
-
-    }
-    pDst += iStride;
-    pSrc += iStride;
-  }
-
-  iWeight = getWPWeight(e, eEffMode, 2);
-  iOffset = getWPOffset(e, eEffMode, 2);
-
-  pSrc    = pcPicYuvRef->getCrAddr();
-  pDst    = m_apcVirtPic[e][uiInsertIdx]->getPicYuvRec()->getCrAddr();
-
-  for (y=0; y<iHeight; y++) {
-    for (x=0; x<iWidth; x++) {
-      pDst[x] = Clip( ((iWeight*pSrc[x] + m_iWPChromaRound) >> m_iChromaLogWeightDenom) + iOffset );
-    }
-    pDst += iStride;
-    pSrc += iStride;
-  }
-}
-
-// ------------------------------------------------------------------------------------------------
-// Sequence parameter set (SPS)
-// ------------------------------------------------------------------------------------------------
-
-TComSPS::TComSPS()
-{
-  // Structure
-  m_uiWidth       = 352;
-  m_uiHeight      = 288;
-  m_uiMaxCUWidth  = 32;
-  m_uiMaxCUHeight = 32;
-  m_uiMaxCUDepth  = 3;
-  m_uiMinTrDepth  = 0;
-  m_uiMaxTrDepth  = 1;
-  m_uiMaxTrSize   = 64;
-
-  // Tool list
-  m_bUseALF       = false;
-  m_bUseDQP       = false;
-
-  m_bUseWPG      = false;
-  m_bUseWPO      = false;
-
-  m_bUseROT				= false; // BB:
-#if HHI_AIS
-  m_bUseAIS      = false; // BB:
-#endif
-#if HHI_MRG
-  m_bUseMRG      = false; // SOPH:
-#endif
-#if HHI_IMVP
-  m_bUseIMP      = false; // SOPH:
-#endif
-
-#if HHI_ALF
-  m_bALFSeparateQt = true; //MS
-  m_bALFSymmetry   = false;//MS
-  m_iALFMinLength  = 3;    //MS
-  m_iALFMaxLength  = 9;    //MS
-#endif
-
-#ifdef DCM_PBIC
-  m_bUseIC       = false;
-#endif
-
-  // AMVP parameter
-  ::memset( m_aeAMVPMode, 0, sizeof( m_aeAMVPMode ) );
-}
-
-TComSPS::~TComSPS()
-{
-}
-
-TComPPS::TComPPS()
-{
-}
-
-TComPPS::~TComPPS()
-{
-}
-
->>>>>>> upstream/master

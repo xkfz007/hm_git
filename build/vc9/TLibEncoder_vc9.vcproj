@@ -1,11 +1,7 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-<<<<<<< HEAD
 	Version="9,00"
-=======
-	Version="9.00"
->>>>>>> upstream/master
 	Name="TLibEncoder"
 	ProjectGUID="{47E90995-1FC5-4EE4-A94D-AD474169F0E1}"
 	RootNamespace="TLibEncoder"
@@ -48,10 +44,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-<<<<<<< HEAD
 				AdditionalIncludeDirectories="$(SolutionDir)\..\source\Lib\;$(SolutionDir)\..\compat\msvc"
-=======
->>>>>>> upstream/master
 				PreprocessorDefinitions="WIN32;_DEBUG;_LIB;_CRT_SECURE_NO_WARNINGS"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -88,19 +81,11 @@
 			/>
 		</Configuration>
 		<Configuration
-<<<<<<< HEAD
 			Name="Debug|x64"
-=======
-			Name="Release|Win32"
->>>>>>> upstream/master
 			OutputDirectory="$(SolutionDir)\vc9\$(PlatformName)\$(ConfigurationName)\$(RootNamespace)"
 			IntermediateDirectory="$(SolutionDir)\vc9\$(PlatformName)\$(ConfigurationName)\$(RootNamespace)"
 			ConfigurationType="4"
 			CharacterSet="2"
-<<<<<<< HEAD
-=======
-			WholeProgramOptimization="1"
->>>>>>> upstream/master
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -116,7 +101,6 @@
 			/>
 			<Tool
 				Name="VCMIDLTool"
-<<<<<<< HEAD
 				TargetEnvironment="3"
 			/>
 			<Tool
@@ -127,19 +111,6 @@
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
-=======
-			/>
-			<Tool
-				Name="VCCLCompilerTool"
-				Optimization="2"
-				InlineFunctionExpansion="2"
-				EnableIntrinsicFunctions="false"
-				FavorSizeOrSpeed="1"
-				PreprocessorDefinitions="WIN32;NDEBUG;_LIB;_CRT_SECURE_NO_WARNINGS"
-				StringPooling="true"
-				RuntimeLibrary="0"
-				EnableFunctionLevelLinking="true"
->>>>>>> upstream/master
 				WarningLevel="3"
 				DebugInformationFormat="3"
 			/>
@@ -172,19 +143,12 @@
 			/>
 		</Configuration>
 		<Configuration
-<<<<<<< HEAD
 			Name="Release|Win32"
-=======
-			Name="Debug|x64"
->>>>>>> upstream/master
 			OutputDirectory="$(SolutionDir)\vc9\$(PlatformName)\$(ConfigurationName)\$(RootNamespace)"
 			IntermediateDirectory="$(SolutionDir)\vc9\$(PlatformName)\$(ConfigurationName)\$(RootNamespace)"
 			ConfigurationType="4"
 			CharacterSet="2"
-<<<<<<< HEAD
 			WholeProgramOptimization="1"
-=======
->>>>>>> upstream/master
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -200,7 +164,6 @@
 			/>
 			<Tool
 				Name="VCMIDLTool"
-<<<<<<< HEAD
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
@@ -213,17 +176,6 @@
 				StringPooling="true"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
-=======
-				TargetEnvironment="3"
-			/>
-			<Tool
-				Name="VCCLCompilerTool"
-				Optimization="0"
-				PreprocessorDefinitions="WIN32;_DEBUG;_LIB;_CRT_SECURE_NO_WARNINGS"
-				MinimalRebuild="true"
-				BasicRuntimeChecks="3"
-				RuntimeLibrary="1"
->>>>>>> upstream/master
 				WarningLevel="3"
 				DebugInformationFormat="3"
 			/>
@@ -285,12 +237,8 @@
 				InlineFunctionExpansion="2"
 				EnableIntrinsicFunctions="false"
 				FavorSizeOrSpeed="1"
-<<<<<<< HEAD
 				AdditionalIncludeDirectories="$(SolutionDir)\..\source\Lib\;$(SolutionDir)\..\compat\msvc"
 				PreprocessorDefinitions="WIN32;_LIB;_CRT_SECURE_NO_WARNINGS"
-=======
-				PreprocessorDefinitions="WIN32;NDEBUG;_LIB;_CRT_SECURE_NO_WARNINGS"
->>>>>>> upstream/master
 				StringPooling="true"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
@@ -334,7 +282,6 @@
 			Filter="cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx"
 			>
 			<File
-<<<<<<< HEAD
 				RelativePath="..\..\source\Lib\TLibEncoder\NALwrite.cpp"
 				>
 			</File>
@@ -356,33 +303,6 @@
 			</File>
 			<File
 				RelativePath="..\..\source\Lib\TLibEncoder\TEncBinCoderCABACCounter.cpp"
-=======
-				RelativePath="..\..\source\Lib\TLibEncoder\TEncAdaptiveLoopFilter.cpp"
-				>
-			</File>
-			<File
-				RelativePath="..\..\source\Lib\TLibEncoder\TEncAnalyze.cpp"
-				>
-			</File>
-			<File
-				RelativePath="..\..\source\Lib\TLibEncoder\TEncBinCoderCABAC.cpp"
-				>
-			</File>
-			<File
-				RelativePath="..\..\source\Lib\TLibEncoder\TEncBinCoderMultiCABAC.cpp"
-				>
-			</File>
-			<File
-				RelativePath="..\..\source\Lib\TLibEncoder\TEncBinCoderMultiPIPE.cpp"
-				>
-			</File>
-			<File
-				RelativePath="..\..\source\Lib\TLibEncoder\TEncBinCoderPIPE.cpp"
-				>
-			</File>
-			<File
-				RelativePath="..\..\source\Lib\TLibEncoder\TEncBinCoderV2VwLB.cpp"
->>>>>>> upstream/master
 				>
 			</File>
 			<File
@@ -402,7 +322,6 @@
 				>
 			</File>
 			<File
-<<<<<<< HEAD
 				RelativePath="..\..\source\Lib\TLibEncoder\TEncPic.cpp"
 				>
 			</File>
@@ -424,21 +343,6 @@
 			</File>
 			<File
 				RelativePath="..\..\source\Lib\TLibEncoder\TEncSearch.cpp"
-=======
-				RelativePath="..\..\source\Lib\TLibEncoder\TEncPIPETables.cpp"
-				>
-			</File>
-			<File
-				RelativePath="..\..\source\Lib\TLibEncoder\TEncSbac.cpp"
-				>
-			</File>
-			<File
-				RelativePath="..\..\source\Lib\TLibEncoder\TEncSearch.cpp"
-				>
-			</File>
-			<File
-				RelativePath="..\..\source\Lib\TLibEncoder\TEncSIFO.cpp"
->>>>>>> upstream/master
 				>
 			</File>
 			<File
@@ -450,11 +354,7 @@
 				>
 			</File>
 			<File
-<<<<<<< HEAD
 				RelativePath="..\..\source\Lib\TLibEncoder\WeightPredAnalysis.cpp"
-=======
-				RelativePath="..\..\source\Lib\TLibEncoder\TEncV2VTrees.cpp"
->>>>>>> upstream/master
 				>
 			</File>
 		</Filter>
@@ -463,7 +363,6 @@
 			Filter="h;hpp;hxx;hm;inl;inc;xsd"
 			>
 			<File
-<<<<<<< HEAD
 				RelativePath="..\..\source\Lib\TLibEncoder\AnnexBwrite.h"
 				>
 			</File>
@@ -497,41 +396,6 @@
 			</File>
 			<File
 				RelativePath="..\..\source\Lib\TLibEncoder\TEncBinCoderCABACCounter.h"
-=======
-				RelativePath="..\..\source\Lib\TLibEncoder\TEncAdaptiveLoopFilter.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\source\Lib\TLibEncoder\TEncAnalyze.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\source\Lib\TLibEncoder\TEncBinCoder.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\source\Lib\TLibEncoder\TEncBinCoderCABAC.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\source\Lib\TLibEncoder\TEncBinCoderCABAC4V2V.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\source\Lib\TLibEncoder\TEncBinCoderMultiCABAC.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\source\Lib\TLibEncoder\TEncBinCoderMultiPIPE.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\source\Lib\TLibEncoder\TEncBinCoderPIPE.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\source\Lib\TLibEncoder\TEncBinCoderV2VwLB.h"
->>>>>>> upstream/master
 				>
 			</File>
 			<File
@@ -555,7 +419,6 @@
 				>
 			</File>
 			<File
-<<<<<<< HEAD
 				RelativePath="..\..\source\Lib\TLibEncoder\TEncPic.h"
 				>
 			</File>
@@ -577,21 +440,6 @@
 			</File>
 			<File
 				RelativePath="..\..\source\Lib\TLibEncoder\TEncSearch.h"
-=======
-				RelativePath="..\..\source\Lib\TLibEncoder\TEncPIPETables.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\source\Lib\TLibEncoder\TEncSbac.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\source\Lib\TLibEncoder\TEncSearch.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\source\Lib\TLibEncoder\TEncSIFO.h"
->>>>>>> upstream/master
 				>
 			</File>
 			<File
@@ -603,11 +451,7 @@
 				>
 			</File>
 			<File
-<<<<<<< HEAD
 				RelativePath="..\..\source\Lib\TLibEncoder\WeightPredAnalysis.h"
-=======
-				RelativePath="..\..\source\Lib\TLibEncoder\.EncV2VTrees.h"
->>>>>>> upstream/master
 				>
 			</File>
 		</Filter>

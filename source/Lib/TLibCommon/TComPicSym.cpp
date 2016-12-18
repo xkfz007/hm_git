@@ -1,10 +1,9 @@
-<<<<<<< HEAD
 /* The copyright in this software is being made available under the BSD
  * License, included below. This software may be subject to other third party
  * and contributor rights, including patent rights, and no such rights are
  * granted under this license.
  *
- * Copyright (c) 2010-2015, ITU/ISO/IEC
+ * Copyright (c) 2010-2016, ITU/ISO/IEC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -64,6 +63,9 @@ TComPicSym::TComPicSym()
 ,m_ctuTsToRsAddrMap(NULL)
 ,m_puiTileIdxMap(NULL)
 ,m_ctuRsToTsAddrMap(NULL)
+#if REDUCED_ENCODER_MEMORY
+,m_dpbPerCtuData(NULL)
+#endif
 ,m_saoBlkParams(NULL)
 #if ADAPTIVE_QP_SELECTION
 ,m_pParentARLBuffer(NULL)
@@ -71,13 +73,26 @@ TComPicSym::TComPicSym()
 {}
 
 
-Void TComPicSym::create  ( const TComSPS &sps, const TComPPS &pps, UInt uiMaxDepth )
+TComPicSym::~TComPicSym()
 {
-  UInt i;
+  destroy();
+}
+
+
+#if REDUCED_ENCODER_MEMORY
+Void TComPicSym::create  ( const TComSPS &sps, const TComPPS &pps, UInt uiMaxDepth, const Bool bAllocateCtuArray )
+#else
+Void TComPicSym::create  ( const TComSPS &sps, const TComPPS &pps, UInt uiMaxDepth )
+#endif
+{
+  destroy();
+
   m_sps = sps;
   m_pps = pps;
 
+#if !REDUCED_ENCODER_MEMORY
   const ChromaFormat chromaFormatIDC = sps.getChromaFormatIdc();
+#endif
   const Int iPicWidth      = sps.getPicWidthInLumaSamples();
   const Int iPicHeight     = sps.getPicHeightInLumaSamples();
   const UInt uiMaxCuWidth  = sps.getMaxCUWidth();
@@ -96,7 +111,11 @@ Void TComPicSym::create  ( const TComSPS &sps, const TComPPS &pps, UInt uiMaxDep
   m_frameHeightInCtus  = ( iPicHeight%uiMaxCuHeight ) ? iPicHeight/uiMaxCuHeight + 1 : iPicHeight/uiMaxCuHeight;
 
   m_numCtusInFrame     = m_frameWidthInCtus * m_frameHeightInCtus;
+#if REDUCED_ENCODER_MEMORY
+  m_pictureCtuArray    = NULL;
+#else
   m_pictureCtuArray    = new TComDataCU*[m_numCtusInFrame];
+#endif
 
   clearSliceBuffer();
   allocateNewSlice();
@@ -104,11 +123,17 @@ Void TComPicSym::create  ( const TComSPS &sps, const TComPPS &pps, UInt uiMaxDep
 #if ADAPTIVE_QP_SELECTION
   if (m_pParentARLBuffer == NULL)
   {
-     m_pParentARLBuffer = new TCoeff[uiMaxCuWidth*uiMaxCuHeight*MAX_NUM_COMPONENT];
+    m_pParentARLBuffer = new TCoeff[uiMaxCuWidth*uiMaxCuHeight*MAX_NUM_COMPONENT];
   }
 #endif
 
-  for ( i=0; i<m_numCtusInFrame ; i++ )
+#if REDUCED_ENCODER_MEMORY
+  if (bAllocateCtuArray)
+  {
+    prepareForReconstruction();
+  }
+#else
+  for (UInt i=0; i<m_numCtusInFrame ; i++ )
   {
     m_pictureCtuArray[i] = new TComDataCU;
     m_pictureCtuArray[i]->create( chromaFormatIDC, m_numPartitionsInCtu, uiMaxCuWidth, uiMaxCuHeight, false, uiMaxCuWidth >> m_uhTotalDepth
@@ -117,12 +142,13 @@ Void TComPicSym::create  ( const TComSPS &sps, const TComPPS &pps, UInt uiMaxDep
 #endif
       );
   }
+#endif
 
   m_ctuTsToRsAddrMap = new UInt[m_numCtusInFrame+1];
   m_puiTileIdxMap    = new UInt[m_numCtusInFrame];
   m_ctuRsToTsAddrMap = new UInt[m_numCtusInFrame+1];
 
-  for( i=0; i<m_numCtusInFrame; i++ )
+  for(UInt i=0; i<m_numCtusInFrame; i++ )
   {
     m_ctuTsToRsAddrMap[i] = i;
     m_ctuRsToTsAddrMap[i] = i;
@@ -136,18 +162,105 @@ Void TComPicSym::create  ( const TComSPS &sps, const TComPPS &pps, UInt uiMaxDep
 
 }
 
+#if REDUCED_ENCODER_MEMORY
+Void TComPicSym::prepareForReconstruction()
+{
+  const ChromaFormat chromaFormatIDC = m_sps.getChromaFormatIdc();
+  const UInt uiMaxCuWidth  = m_sps.getMaxCUWidth();
+  const UInt uiMaxCuHeight = m_sps.getMaxCUHeight();
+  if (m_pictureCtuArray == NULL)
+  {
+    m_pictureCtuArray = new TComDataCU*[m_numCtusInFrame];
+
+    for (UInt i=0; i<m_numCtusInFrame ; i++ )
+    {
+      m_pictureCtuArray[i] = new TComDataCU;
+      m_pictureCtuArray[i]->create( chromaFormatIDC, m_numPartitionsInCtu, uiMaxCuWidth, uiMaxCuHeight, false, uiMaxCuWidth >> m_uhTotalDepth
+#if ADAPTIVE_QP_SELECTION
+        , m_pParentARLBuffer
+#endif
+        );
+    }
+  }
+  if (m_dpbPerCtuData == NULL)
+  {
+    m_dpbPerCtuData = new DPBPerCtuData[m_numCtusInFrame];
+    for(UInt i=0; i<m_numCtusInFrame; i++)
+    {
+      for(Int j=0; j<NUM_REF_PIC_LIST_01; j++)
+      {
+        m_dpbPerCtuData[i].m_CUMvField[j].create( m_numPartitionsInCtu );
+      }
+      m_dpbPerCtuData[i].m_pePredMode = new SChar[m_numPartitionsInCtu];
+      memset(m_dpbPerCtuData[i].m_pePredMode, NUMBER_OF_PREDICTION_MODES, m_numPartitionsInCtu);
+      m_dpbPerCtuData[i].m_pePartSize = new SChar[m_numPartitionsInCtu];
+      memset(m_dpbPerCtuData[i].m_pePartSize, NUMBER_OF_PART_SIZES, m_numPartitionsInCtu);
+      m_dpbPerCtuData[i].m_pSlice=NULL;
+    }
+  }
+}
+
+Void TComPicSym::releaseReconstructionIntermediateData()
+{
+  if (m_pictureCtuArray)
+  {
+    for (Int i = 0; i < m_numCtusInFrame; i++)
+    {
+      if (m_pictureCtuArray[i])
+      {
+        m_pictureCtuArray[i]->destroy();
+        delete m_pictureCtuArray[i];
+        m_pictureCtuArray[i] = NULL;
+      }
+    }
+    delete [] m_pictureCtuArray;
+    m_pictureCtuArray = NULL;
+  }
+}
+
+Void TComPicSym::releaseAllReconstructionData()
+{
+  releaseReconstructionIntermediateData();
+
+  if (m_dpbPerCtuData != NULL)
+  {
+    for(UInt i=0; i<m_numCtusInFrame; i++)
+    {
+      for(Int j=0; j<NUM_REF_PIC_LIST_01; j++)
+      {
+        m_dpbPerCtuData[i].m_CUMvField[j].destroy();
+      }
+      delete [] m_dpbPerCtuData[i].m_pePredMode;
+      delete [] m_dpbPerCtuData[i].m_pePartSize;
+    }
+    delete [] m_dpbPerCtuData;
+    m_dpbPerCtuData=NULL;
+  }
+}
+#endif
+
 Void TComPicSym::destroy()
 {
   clearSliceBuffer();
 
-  for (Int i = 0; i < m_numCtusInFrame; i++)
+#if REDUCED_ENCODER_MEMORY
+  releaseAllReconstructionData();
+#else
+  if (m_pictureCtuArray)
   {
-    m_pictureCtuArray[i]->destroy();
-    delete m_pictureCtuArray[i];
-    m_pictureCtuArray[i] = NULL;
+    for (Int i = 0; i < m_numCtusInFrame; i++)
+    {
+      if (m_pictureCtuArray[i])
+      {
+        m_pictureCtuArray[i]->destroy();
+        delete m_pictureCtuArray[i];
+        m_pictureCtuArray[i] = NULL;
+      }
+    }
+    delete [] m_pictureCtuArray;
+    m_pictureCtuArray = NULL;
   }
-  delete [] m_pictureCtuArray;
-  m_pictureCtuArray = NULL;
+#endif
 
   delete [] m_ctuTsToRsAddrMap;
   m_ctuTsToRsAddrMap = NULL;
@@ -487,96 +600,3 @@ TComTile::~TComTile()
 {
 }
 //! \}
-=======
-/* ====================================================================================================================
-
-  The copyright in this software is being made available under the License included below.
-  This software may be subject to other third party and   contributor rights, including patent rights, and no such
-  rights are granted under this license.
-
-  Copyright (c) 2010, SAMSUNG ELECTRONICS CO., LTD. and BRITISH BROADCASTING CORPORATION
-  All rights reserved.
-
-  Redistribution and use in source and binary forms, with or without modification, are permitted only for
-  the purpose of developing standards within the Joint Collaborative Team on Video Coding and for testing and
-  promoting such standards. The following conditions are required to be met:
-
-    * Redistributions of source code must retain the above copyright notice, this list of conditions and
-      the following disclaimer.
-    * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and
-      the following disclaimer in the documentation and/or other materials provided with the distribution.
-    * Neither the name of SAMSUNG ELECTRONICS CO., LTD. nor the name of the BRITISH BROADCASTING CORPORATION
-      may be used to endorse or promote products derived from this software without specific prior written permission.
-
-  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
-  INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
- * ====================================================================================================================
-*/
-
-/** \file     TComPicSym.cpp
-    \brief    picture symbol class
-*/
-
-#include "TComPicSym.h"
-
-// ====================================================================================================================
-// Constructor / destructor / create / destroy
-// ====================================================================================================================
-
-Void TComPicSym::create  ( Int iPicWidth, Int iPicHeight, UInt uiMaxWidth, UInt uiMaxHeight, UInt uiMaxDepth )
-{
-  UInt i;
-
-  m_apcTComSlice      = new TComSlice;
-
-  m_uhTotalDepth      = uiMaxDepth;
-  m_uiNumPartitions   = 1<<(m_uhTotalDepth<<1);
-
-  m_uiMaxCUWidth      = uiMaxWidth;
-  m_uiMaxCUHeight     = uiMaxHeight;
-
-  m_uiMinCUWidth      = uiMaxWidth  >> m_uhTotalDepth;
-  m_uiMinCUHeight     = uiMaxHeight >> m_uhTotalDepth;
-
-  m_uiNumPartInWidth  = m_uiMaxCUWidth  / m_uiMinCUWidth;
-  m_uiNumPartInHeight = m_uiMaxCUHeight / m_uiMinCUHeight;
-
-  m_uiWidthInCU       = ( iPicWidth %m_uiMaxCUWidth  ) ? iPicWidth /m_uiMaxCUWidth  + 1 : iPicWidth /m_uiMaxCUWidth;
-  m_uiHeightInCU      = ( iPicHeight%m_uiMaxCUHeight ) ? iPicHeight/m_uiMaxCUHeight + 1 : iPicHeight/m_uiMaxCUHeight;
-
-  m_uiNumCUsInFrame   = m_uiWidthInCU * m_uiHeightInCU;
-  m_apcTComDataCU     = new TComDataCU*[m_uiNumCUsInFrame];
-
-  for ( i=0; i<m_uiNumCUsInFrame ; i++ )
-  {
-    m_apcTComDataCU[i] = new TComDataCU;
-    m_apcTComDataCU[i]->create( m_uiNumPartitions, m_uiMaxCUWidth, m_uiMaxCUHeight, false );
-  }
-}
-
-Void TComPicSym::destroy()
-{
-  Int i;
-
-  delete m_apcTComSlice;
-  m_apcTComSlice = NULL;
-
-
-
-  for (i = 0; i < m_uiNumCUsInFrame; i++)
-  {
-    m_apcTComDataCU[i]->destroy();
-    delete m_apcTComDataCU[i];
-    m_apcTComDataCU[i] = NULL;
-  }
-  delete [] m_apcTComDataCU;
-  m_apcTComDataCU = NULL;
-}
-
->>>>>>> upstream/master
