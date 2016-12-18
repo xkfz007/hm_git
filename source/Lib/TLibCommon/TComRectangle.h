@@ -1,9 +1,9 @@
 /* The copyright in this software is being made available under the BSD
  * License, included below. This software may be subject to other third party
  * and contributor rights, including patent rights, and no such rights are
- * granted under this license.  
+ * granted under this license.
  *
- * Copyright (c) 2010-2013, ITU/ISO/IEC
+ * Copyright (c) 2010-2015, ITU/ISO/IEC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,24 +31,20 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/** \file     TEncAnalyze.cpp
-    \brief    encoder analyzer class
-*/
 
-#include "TEncAnalyze.h"
+#ifndef __TCOMRECTANGLE__
+#define __TCOMRECTANGLE__
 
-//! \ingroup TLibEncoder
-//! \{
 
-//////////////////////////////////////////////////////////////////////
-// Construction/Destruction
-//////////////////////////////////////////////////////////////////////
+struct TComRectangle
+{
+  UInt width;
+  UInt height;
+  UInt x0;
+  UInt y0;
+};
 
-TEncAnalyze             m_gcAnalyzeAll;
-TEncAnalyze             m_gcAnalyzeI;
-TEncAnalyze             m_gcAnalyzeP;
-TEncAnalyze             m_gcAnalyzeB;
 
-TEncAnalyze             m_gcAnalyzeAll_in;
 
-//! \}
+
+#endif

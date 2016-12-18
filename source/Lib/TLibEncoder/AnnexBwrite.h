@@ -3,7 +3,7 @@
  * and contributor rights, including patent rights, and no such rights are
  * granted under this license.
  *
- * Copyright (c) 2010-2013, ITU/ISO/IEC
+ * Copyright (c) 2010-2015, ITU/ISO/IEC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,9 @@
 
 #pragma once
 
+#ifndef __ANNEXBWRITE__
+#define __ANNEXBWRITE__
+
 #include <ostream>
 #include "TLibCommon/AccessUnit.h"
 #include "NALwrite.h"
@@ -57,7 +60,7 @@ static std::vector<UInt> writeAnnexB(std::ostream& out, const AccessUnit& au)
     UInt size = 0; /* size of annexB unit in bytes */
 
     static const Char start_code_prefix[] = {0,0,0,1};
-    if (it == au.begin() || nalu.m_nalUnitType == NAL_UNIT_SPS || nalu.m_nalUnitType == NAL_UNIT_PPS)
+    if (it == au.begin() || nalu.m_nalUnitType == NAL_UNIT_VPS || nalu.m_nalUnitType == NAL_UNIT_SPS || nalu.m_nalUnitType == NAL_UNIT_PPS)
     {
       /* From AVC, When any of the following conditions are fulfilled, the
        * zero_byte syntax element shall be present:
@@ -84,3 +87,5 @@ static std::vector<UInt> writeAnnexB(std::ostream& out, const AccessUnit& au)
   return annexBsizes;
 }
 //! \}
+
+#endif

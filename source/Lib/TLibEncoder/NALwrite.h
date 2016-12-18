@@ -3,7 +3,7 @@
  * and contributor rights, including patent rights, and no such rights are
  * granted under this license.
  *
- * Copyright (c) 2010-2013, ITU/ISO/IEC
+ * Copyright (c) 2010-2015, ITU/ISO/IEC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,9 +33,12 @@
 
 #pragma once
 
+#ifndef __NALWRITE__
+#define __NALWRITE__
+
 #include <ostream>
 
-#include "TLibCommon/TypeDef.h"
+#include "TLibCommon/CommonDef.h"
 #include "TLibCommon/TComBitStream.h"
 #include "TLibCommon/NAL.h"
 
@@ -71,8 +74,7 @@ struct OutputNALUnit : public NALUnit
   TComOutputBitstream m_Bitstream;
 };
 
-void write(std::ostream& out, OutputNALUnit& nalu);
-void writeRBSPTrailingBits(TComOutputBitstream& bs);
+Void write(std::ostream& out, OutputNALUnit& nalu);
 
 inline NALUnitEBSP::NALUnitEBSP(OutputNALUnit& nalu)
   : NALUnit(nalu)
@@ -80,6 +82,6 @@ inline NALUnitEBSP::NALUnitEBSP(OutputNALUnit& nalu)
   write(m_nalUnitData, nalu);
 }
 
-void copyNaluData(OutputNALUnit& naluDest, const OutputNALUnit& naluSrc);
-
 //! \}
+
+#endif

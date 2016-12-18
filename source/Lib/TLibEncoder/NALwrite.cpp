@@ -3,7 +3,7 @@
  * and contributor rights, including patent rights, and no such rights are
  * granted under this license.
  *
- * Copyright (c) 2010-2013, ITU/ISO/IEC
+ * Copyright (c) 2010-2015, ITU/ISO/IEC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,7 +52,7 @@ TComOutputBitstream bsNALUHeader;
 
   bsNALUHeader.write(0,1);                    // forbidden_zero_bit
   bsNALUHeader.write(nalu.m_nalUnitType, 6);  // nal_unit_type
-  bsNALUHeader.write(nalu.m_reservedZero6Bits, 6);                   // nuh_reserved_zero_6bits
+  bsNALUHeader.write(nalu.m_nuhLayerId, 6);   // nuh_layer_id
   bsNALUHeader.write(nalu.m_temporalId+1, 3); // nuh_temporal_id_plus1
 
   out.write(bsNALUHeader.getByteStream(), bsNALUHeader.getByteStreamLength());
@@ -61,7 +61,7 @@ TComOutputBitstream bsNALUHeader;
  * write nalu to bytestream out, performing RBSP anti startcode
  * emulation as required.  nalu.m_RBSPayload must be byte aligned.
  */
-void write(ostream& out, OutputNALUnit& nalu)
+Void write(ostream& out, OutputNALUnit& nalu)
 {
   writeNalUnitHeader(out, nalu);
   /* write out rsbp_byte's, inserting any required
@@ -86,64 +86,40 @@ void write(ostream& out, OutputNALUnit& nalu)
    */
   vector<uint8_t>& rbsp   = nalu.m_Bitstream.getFIFO();
 
-  for (vector<uint8_t>::iterator it = rbsp.begin(); it != rbsp.end();)
+  vector<uint8_t> outputBuffer;
+  outputBuffer.resize(rbsp.size()*2+1); //there can never be enough emulation_prevention_three_bytes to require this much space
+  std::size_t outputAmount = 0;
+  Int         zeroCount    = 0;
+  for (vector<uint8_t>::iterator it = rbsp.begin(); it != rbsp.end(); it++)
   {
-    /* 1) find the next emulated 00 00 {00,01,02,03}
-     * 2a) if not found, write all remaining bytes out, stop.
-     * 2b) otherwise, write all non-emulated bytes out
-     * 3) insert emulation_prevention_three_byte
-     */
-    vector<uint8_t>::iterator found = it;
-    do
+    const uint8_t v=(*it);
+    if (zeroCount==2 && v<=3)
     {
-      /* NB, end()-1, prevents finding a trailing two byte sequence */
-      found = search_n(found, rbsp.end()-1, 2, 0);
-      found++;
-      /* if not found, found == end, otherwise found = second zero byte */
-      if (found == rbsp.end())
-        break;
-      if (*(++found) <= 3)
-        break;
-    } while (true);
-
-    it = found;
-    if (found != rbsp.end())
-    {
-      it = rbsp.insert(found, emulation_prevention_three_byte[0]);
+      outputBuffer[outputAmount++]=emulation_prevention_three_byte[0];
+      zeroCount=0;
     }
-  }
 
-  out.write((Char*)&(*rbsp.begin()), rbsp.end() - rbsp.begin());
+    if (v==0)
+    {
+      zeroCount++;
+    }
+    else
+    {
+      zeroCount=0;
+    }
+    outputBuffer[outputAmount++]=v;
+  }
 
   /* 7.4.1.1
    * ... when the last byte of the RBSP data is equal to 0x00 (which can
    * only occur when the RBSP ends in a cabac_zero_word), a final byte equal
    * to 0x03 is appended to the end of the data.
    */
-  if (rbsp.back() == 0x00)
+  if (zeroCount>0)
   {
-    out.write(emulation_prevention_three_byte, 1);
+    outputBuffer[outputAmount++]=emulation_prevention_three_byte[0];
   }
-}
-
-/**
- * Write rbsp_trailing_bits to bs causing it to become byte-aligned
- */
-void writeRBSPTrailingBits(TComOutputBitstream& bs)
-{
-  bs.write( 1, 1 );
-  bs.writeAlignZero();
-}
-
-/**
- * Copy NALU from naluSrc to naluDest
- */
-void copyNaluData(OutputNALUnit& naluDest, const OutputNALUnit& naluSrc)
-{
-  naluDest.m_nalUnitType = naluSrc.m_nalUnitType;
-  naluDest.m_reservedZero6Bits  = naluSrc.m_reservedZero6Bits;
-  naluDest.m_temporalId  = naluSrc.m_temporalId;
-  naluDest.m_Bitstream   = naluSrc.m_Bitstream;
+  out.write((Char*)&(*outputBuffer.begin()), outputAmount);
 }
 
 //! \}

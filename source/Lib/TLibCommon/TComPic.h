@@ -1,9 +1,9 @@
 /* The copyright in this software is being made available under the BSD
  * License, included below. This software may be subject to other third party
  * and contributor rights, including patent rights, and no such rights are
- * granted under this license.  
+ * granted under this license.
  *
- * Copyright (c) 2010-2013, ITU/ISO/IEC
+ * Copyright (c) 2010-2015, ITU/ISO/IEC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,6 @@
 #include "TComPicSym.h"
 #include "TComPicYuv.h"
 #include "TComBitStream.h"
-#include "SEI.h"
 
 //! \ingroup TLibCommon
 //! \{
@@ -53,38 +52,31 @@
 // ====================================================================================================================
 
 /// picture class (symbol + YUV buffers)
+
 class TComPic
 {
+public:
+  typedef enum { PIC_YUV_ORG=0, PIC_YUV_REC=1, PIC_YUV_TRUE_ORG=2, NUM_PIC_YUV=3 } PIC_YUV_T;
+     // TRUE_ORG is the input file without any pre-encoder colour space conversion (but with possible bit depth increment)
+  TComPicYuv*   getPicYuvTrueOrg()        { return  m_apcPicYuv[PIC_YUV_TRUE_ORG]; }
+
 private:
   UInt                  m_uiTLayer;               //  Temporal layer
   Bool                  m_bUsedByCurr;            //  Used by current picture
   Bool                  m_bIsLongTerm;            //  IS long term picture
-  TComPicSym*           m_apcPicSym;              //  Symbol
-  
-  TComPicYuv*           m_apcPicYuv[2];           //  Texture,  0:org / 1:rec
-  
+  TComPicSym            m_picSym;                 //  Symbol
+  TComPicYuv*           m_apcPicYuv[NUM_PIC_YUV];
+
   TComPicYuv*           m_pcPicYuvPred;           //  Prediction
   TComPicYuv*           m_pcPicYuvResi;           //  Residual
   Bool                  m_bReconstructed;
   Bool                  m_bNeededForOutput;
   UInt                  m_uiCurrSliceIdx;         // Index of current slice
-#if !HM_CLEANUP_SAO
-  Int*                  m_pSliceSUMap;
-  Bool*                 m_pbValidSlice;
-  Int                   m_sliceGranularityForNDBFilter;
-  Bool                  m_bIndependentSliceBoundaryForNDBFilter;
-  Bool                  m_bIndependentTileBoundaryForNDBFilter;
-  TComPicYuv*           m_pNDBFilterYuvTmp;    //!< temporary picture buffer when non-cross slice/tile boundary in-loop filtering is enabled
-#endif
   Bool                  m_bCheckLTMSB;
-  
-  Int                   m_numReorderPics[MAX_TLAYER];
-  Window                m_conformanceWindow;
-  Window                m_defaultDisplayWindow;
 
-  bool                  m_isTop;
-  bool                  m_isField;
-  
+  Bool                  m_isTop;
+  Bool                  m_isField;
+
   std::vector<std::vector<TComDataCU*> > m_vSliceCUDataLink;
 
   SEIMessages  m_SEIs; ///< Any SEI messages that have been received.  If !NULL we own the object.
@@ -92,94 +84,78 @@ private:
 public:
   TComPic();
   virtual ~TComPic();
-  
-  Void          create( Int iWidth, Int iHeight, UInt uiMaxWidth, UInt uiMaxHeight, UInt uiMaxDepth, Window &conformanceWindow, Window &defaultDisplayWindow, 
-                        Int *numReorderPics, Bool bIsVirtual = false );
-                        
+
+  Void          create( const TComSPS &sps, const TComPPS &pps, const Bool bIsVirtual /*= false*/ );
+
   virtual Void  destroy();
-  
-  UInt          getTLayer()                { return m_uiTLayer;   }
+
+  UInt          getTLayer() const               { return m_uiTLayer;   }
   Void          setTLayer( UInt uiTLayer ) { m_uiTLayer = uiTLayer; }
 
-  Bool          getUsedByCurr()             { return m_bUsedByCurr; }
+  Bool          getUsedByCurr() const            { return m_bUsedByCurr; }
   Void          setUsedByCurr( Bool bUsed ) { m_bUsedByCurr = bUsed; }
-  Bool          getIsLongTerm()             { return m_bIsLongTerm; }
+  Bool          getIsLongTerm() const            { return m_bIsLongTerm; }
   Void          setIsLongTerm( Bool lt ) { m_bIsLongTerm = lt; }
   Void          setCheckLTMSBPresent     (Bool b ) {m_bCheckLTMSB=b;}
   Bool          getCheckLTMSBPresent     () { return m_bCheckLTMSB;}
 
-  TComPicSym*   getPicSym()           { return  m_apcPicSym;    }
-  TComSlice*    getSlice(Int i)       { return  m_apcPicSym->getSlice(i);  }
-  Int           getPOC()              { return  m_apcPicSym->getSlice(m_uiCurrSliceIdx)->getPOC();  }
-  TComDataCU*&  getCU( UInt uiCUAddr )  { return  m_apcPicSym->getCU( uiCUAddr ); }
-  
-  TComPicYuv*   getPicYuvOrg()        { return  m_apcPicYuv[0]; }
-  TComPicYuv*   getPicYuvRec()        { return  m_apcPicYuv[1]; }
-  
+  TComPicSym*   getPicSym()           { return  &m_picSym;    }
+  TComSlice*    getSlice(Int i)       { return  m_picSym.getSlice(i);  }
+  Int           getPOC() const        { return  m_picSym.getSlice(m_uiCurrSliceIdx)->getPOC();  }
+  TComDataCU*   getCtu( UInt ctuRsAddr )           { return  m_picSym.getCtu( ctuRsAddr ); }
+  const TComDataCU* getCtu( UInt ctuRsAddr ) const { return  m_picSym.getCtu( ctuRsAddr ); }
+
+  TComPicYuv*   getPicYuvOrg()        { return  m_apcPicYuv[PIC_YUV_ORG]; }
+  TComPicYuv*   getPicYuvRec()        { return  m_apcPicYuv[PIC_YUV_REC]; }
+
   TComPicYuv*   getPicYuvPred()       { return  m_pcPicYuvPred; }
   TComPicYuv*   getPicYuvResi()       { return  m_pcPicYuvResi; }
   Void          setPicYuvPred( TComPicYuv* pcPicYuv )       { m_pcPicYuvPred = pcPicYuv; }
   Void          setPicYuvResi( TComPicYuv* pcPicYuv )       { m_pcPicYuvResi = pcPicYuv; }
-  
-  UInt          getNumCUsInFrame()      { return m_apcPicSym->getNumberOfCUsInFrame(); }
-  UInt          getNumPartInWidth()     { return m_apcPicSym->getNumPartInWidth();     }
-  UInt          getNumPartInHeight()    { return m_apcPicSym->getNumPartInHeight();    }
-  UInt          getNumPartInCU()        { return m_apcPicSym->getNumPartition();       }
-  UInt          getFrameWidthInCU()     { return m_apcPicSym->getFrameWidthInCU();     }
-  UInt          getFrameHeightInCU()    { return m_apcPicSym->getFrameHeightInCU();    }
-  UInt          getMinCUWidth()         { return m_apcPicSym->getMinCUWidth();         }
-  UInt          getMinCUHeight()        { return m_apcPicSym->getMinCUHeight();        }
-  
-  UInt          getParPelX(UChar uhPartIdx) { return getParPelX(uhPartIdx); }
-  UInt          getParPelY(UChar uhPartIdx) { return getParPelX(uhPartIdx); }
-  
-  Int           getStride()           { return m_apcPicYuv[1]->getStride(); }
-  Int           getCStride()          { return m_apcPicYuv[1]->getCStride(); }
-  
+
+  UInt          getNumberOfCtusInFrame() const     { return m_picSym.getNumberOfCtusInFrame(); }
+  UInt          getNumPartInCtuWidth() const       { return m_picSym.getNumPartInCtuWidth();   }
+  UInt          getNumPartInCtuHeight() const      { return m_picSym.getNumPartInCtuHeight();  }
+  UInt          getNumPartitionsInCtu() const      { return m_picSym.getNumPartitionsInCtu();  }
+  UInt          getFrameWidthInCtus() const        { return m_picSym.getFrameWidthInCtus();    }
+  UInt          getFrameHeightInCtus() const       { return m_picSym.getFrameHeightInCtus();   }
+  UInt          getMinCUWidth() const              { return m_picSym.getMinCUWidth();          }
+  UInt          getMinCUHeight() const             { return m_picSym.getMinCUHeight();         }
+
+  Int           getStride(const ComponentID id) const          { return m_apcPicYuv[PIC_YUV_REC]->getStride(id); }
+  Int           getComponentScaleX(const ComponentID id) const    { return m_apcPicYuv[PIC_YUV_REC]->getComponentScaleX(id); }
+  Int           getComponentScaleY(const ComponentID id) const    { return m_apcPicYuv[PIC_YUV_REC]->getComponentScaleY(id); }
+  ChromaFormat  getChromaFormat() const                           { return m_apcPicYuv[PIC_YUV_REC]->getChromaFormat(); }
+  Int           getNumberValidComponents() const                  { return m_apcPicYuv[PIC_YUV_REC]->getNumberValidComponents(); }
+
   Void          setReconMark (Bool b) { m_bReconstructed = b;     }
-  Bool          getReconMark ()       { return m_bReconstructed;  }
+  Bool          getReconMark () const      { return m_bReconstructed;  }
   Void          setOutputMark (Bool b) { m_bNeededForOutput = b;     }
-  Bool          getOutputMark ()       { return m_bNeededForOutput;  }
- 
-  Void          setNumReorderPics(Int i, UInt tlayer) { m_numReorderPics[tlayer] = i;    }
-  Int           getNumReorderPics(UInt tlayer)        { return m_numReorderPics[tlayer]; }
+  Bool          getOutputMark () const      { return m_bNeededForOutput;  }
 
-  Void          compressMotion(); 
-  UInt          getCurrSliceIdx()            { return m_uiCurrSliceIdx;                }
+  Void          compressMotion();
+  UInt          getCurrSliceIdx() const           { return m_uiCurrSliceIdx;                }
   Void          setCurrSliceIdx(UInt i)      { m_uiCurrSliceIdx = i;                   }
-  UInt          getNumAllocatedSlice()       {return m_apcPicSym->getNumAllocatedSlice();}
-  Void          allocateNewSlice()           {m_apcPicSym->allocateNewSlice();         }
-  Void          clearSliceBuffer()           {m_apcPicSym->clearSliceBuffer();         }
+  UInt          getNumAllocatedSlice() const      {return m_picSym.getNumAllocatedSlice();}
+  Void          allocateNewSlice()           {m_picSym.allocateNewSlice();         }
+  Void          clearSliceBuffer()           {m_picSym.clearSliceBuffer();         }
 
-  Window&       getConformanceWindow()  { return m_conformanceWindow; }
-  Window&       getDefDisplayWindow()   { return m_defaultDisplayWindow; }
+  const Window& getConformanceWindow() const { return m_picSym.getSPS().getConformanceWindow(); }
+  Window        getDefDisplayWindow() const  { return m_picSym.getSPS().getVuiParametersPresentFlag() ? m_picSym.getSPS().getVuiParameters()->getDefaultDisplayWindow() : Window(); }
 
-#if HM_CLEANUP_SAO
   Bool          getSAOMergeAvailability(Int currAddr, Int mergeAddr);
-#else
-  Void          createNonDBFilterInfo   (std::vector<Int> sliceStartAddress, Int sliceGranularityDepth
-                                        ,std::vector<Bool>* LFCrossSliceBoundary
-                                        ,Int  numTiles = 1
-                                        ,Bool bNDBFilterCrossTileBoundary = true);
-  Void          createNonDBFilterInfoLCU(Int tileID, Int sliceID, TComDataCU* pcCU, UInt startSU, UInt endSU, Int sliceGranularyDepth, UInt picWidth, UInt picHeight);
-  Void          destroyNonDBFilterInfo();
 
-  Bool          getValidSlice                                  (Int sliceID)  {return m_pbValidSlice[sliceID];}
-  Bool          getIndependentSliceBoundaryForNDBFilter        ()             {return m_bIndependentSliceBoundaryForNDBFilter;}
-  Bool          getIndependentTileBoundaryForNDBFilter         ()             {return m_bIndependentTileBoundaryForNDBFilter; }
-  TComPicYuv*   getYuvPicBufferForIndependentBoundaryProcessing()             {return m_pNDBFilterYuvTmp;}
-  std::vector<TComDataCU*>& getOneSliceCUDataForNDBFilter      (Int sliceID) { return m_vSliceCUDataLink[sliceID];}
-#endif
+  UInt          getSubstreamForCtuAddr(const UInt ctuAddr, const Bool bAddressInRaster, TComSlice *pcSlice);
 
   /* field coding parameters*/
 
-   Void              setTopField(bool b)                  {m_isTop = b;}
-   bool              isTopField()                         {return m_isTop;}
-   Void              setField(bool b)                     {m_isField = b;}
-   bool              isField()                            {return m_isField;}
+   Void              setTopField(Bool b)                  {m_isTop = b;}
+   Bool              isTopField()                         {return m_isTop;}
+   Void              setField(Bool b)                     {m_isField = b;}
+   Bool              isField()                            {return m_isField;}
 
   /** transfer ownership of seis to this picture */
-  void setSEIs(SEIMessages& seis) { m_SEIs = seis; }
+  Void setSEIs(SEIMessages& seis) { m_SEIs = seis; }
 
   /**
    * return the current list of SEI messages associated with this picture.
@@ -190,7 +166,9 @@ public:
    * return the current list of SEI messages associated with this picture.
    * Pointer is valid until this->destroy() is called */
   const SEIMessages& getSEIs() const { return m_SEIs; }
-
+#if 1//OUTPUT_FRM_LEN
+  int pic_len;
+#endif
 };// END CLASS DEFINITION TComPic
 
 //! \}
