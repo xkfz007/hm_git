@@ -37,14 +37,8 @@
 
 #include "NALread.h"
 #include "TDecTop.h"
-#include "libmd5/MD5.h"
-#include "TLibCommon/SEI.h"
 
 //! \ingroup TLibDecoder
-extern Bool g_md5_mismatch; ///< top level flag to signal when there is a decode problem
-
-static void calcAndPrintHashStatus(TComPicYuv& pic, const SEIDecodedPictureHash* pictureHashSEI);
-
 //! \{
 
 TDecTop::TDecTop()
@@ -56,13 +50,14 @@ TDecTop::TDecTop()
   g_bJustDoIt = g_bEncDecTraceDisable;
   g_nSymbolCounter = 0;
 #endif
+  m_associatedIRAPType = NAL_UNIT_INVALID;
   m_pocCRA = 0;
-  m_prevRAPisBLA = false;
   m_pocRandomAccess = MAX_INT;          
   m_prevPOC                = MAX_INT;
   m_bFirstSliceInPicture    = true;
   m_bFirstSliceInSequence   = true;
-  m_digestCanBeChecked      = false;
+  m_prevSliceSkipped = false;
+  m_skippedPOC = 0;
 }
 
 TDecTop::~TDecTop()
@@ -138,7 +133,9 @@ Void TDecTop::xGetNewPicBuffer ( TComSlice* pcSlice, TComPic*& rpcPic )
     
     rpcPic->create ( pcSlice->getSPS()->getPicWidthInLumaSamples(), pcSlice->getSPS()->getPicHeightInLumaSamples(), g_uiMaxCUWidth, g_uiMaxCUHeight, g_uiMaxCUDepth, 
                      conformanceWindow, defaultDisplayWindow, numReorderPics, true);
+#if !HM_CLEANUP_SAO
     rpcPic->getPicSym()->allocSaoParam(&m_cSAO);
+#endif
     m_cListPic.pushBack( rpcPic );
     
     return;
@@ -176,7 +173,9 @@ Void TDecTop::xGetNewPicBuffer ( TComSlice* pcSlice, TComPic*& rpcPic )
   rpcPic->destroy();
   rpcPic->create ( pcSlice->getSPS()->getPicWidthInLumaSamples(), pcSlice->getSPS()->getPicHeightInLumaSamples(), g_uiMaxCUWidth, g_uiMaxCUHeight, g_uiMaxCUDepth,
                    conformanceWindow, defaultDisplayWindow, numReorderPics, true);
+#if !HM_CLEANUP_SAO
   rpcPic->getPicSym()->allocSaoParam(&m_cSAO);
+#endif
 }
 
 Void TDecTop::executeLoopFilters(Int& poc, TComList<TComPic*>*& rpcListPic)
@@ -192,27 +191,13 @@ Void TDecTop::executeLoopFilters(Int& poc, TComList<TComPic*>*& rpcListPic)
   // Execute Deblock + Cleanup
 
   m_cGopDecoder.filterPicture(pcPic);
-  m_digestCanBeChecked = true;
+
   TComSlice::sortPicList( m_cListPic ); // sorting for application output
   poc                 = pcPic->getSlice(m_uiSliceIdx-1)->getPOC();
   rpcListPic          = &m_cListPic;  
   m_cCuDecoder.destroy();        
   m_bFirstSliceInPicture  = true;
-  if (m_decodedPictureHashSEIEnabled)
-    {
-      SEIMessages pictureHashes = getSeisByType(m_pcPic->getSEIs(), SEI::DECODED_PICTURE_HASH );
-      const SEIDecodedPictureHash *hash = ( pictureHashes.size() > 0 ) ? (SEIDecodedPictureHash*) *(pictureHashes.begin()) : NULL;
-      if(pictureHashes.size() == 0)
-      {
-        return;
-      }
-      // Possible that the SUFFIX SEI was inserted before the last slice (but after the first one)
-      if (pictureHashes.size() > 1)
-      {
-        printf ("Warning: Got multiple decoded picture hash SEI messages. Using first.");
-      }
-      calcAndPrintHashStatus(*m_pcPic->getPicYuvRec(), hash);
-    }
+
   return;
 }
 
@@ -323,25 +308,18 @@ Void TDecTop::xActivateParameterSets()
   }
 
   m_cSAO.destroy();
+
+#if HM_CLEANUP_SAO
+  m_cSAO.create( sps->getPicWidthInLumaSamples(), sps->getPicHeightInLumaSamples(), sps->getMaxCUWidth(), sps->getMaxCUHeight(), sps->getMaxCUDepth() );
+#else
   m_cSAO.create( sps->getPicWidthInLumaSamples(), sps->getPicHeightInLumaSamples(), sps->getMaxCUWidth(), sps->getMaxCUHeight() );
+#endif
   m_cLoopFilter.create( sps->getMaxCUDepth() );
 }
 
-Bool TDecTop::xDecodeSlice(InputNALUnit &nalu, Int &iSkipFrame, Int iPOCLastDisplay, Bool &bPicComplete )
+Bool TDecTop::xDecodeSlice(InputNALUnit &nalu, Int &iSkipFrame, Int iPOCLastDisplay )
 {
   TComPic*&   pcPic         = m_pcPic;
-
-  if (isRandomAccessSkipPicture(iSkipFrame, iPOCLastDisplay))
-  {
-    m_digestCanBeChecked = false;
-    return false;
-  }
-  // Skip TFD pictures associated with BLA/BLANT pictures
-  if (isSkipPictureForBLA(iPOCLastDisplay))
-  {
-    m_digestCanBeChecked = false;
-    return false;
-  }
   m_apcSlicePilot->initSlice();
 
   if (m_bFirstSliceInPicture)
@@ -366,17 +344,33 @@ Bool TDecTop::xDecodeSlice(InputNALUnit &nalu, Int &iSkipFrame, Int iPOCLastDisp
   m_apcSlicePilot->setTLayerInfo(nalu.m_temporalId);
 
   m_cEntropyDecoder.decodeSliceHeader (m_apcSlicePilot, &m_parameterSetManagerDecoder);
+  
+  // set POC for dependent slices in skipped pictures
+  if(m_apcSlicePilot->getDependentSliceSegmentFlag() && m_prevSliceSkipped) 
+  {
+    m_apcSlicePilot->setPOC(m_skippedPOC);
+  }
+
+  m_apcSlicePilot->setAssociatedIRAPPOC(m_pocCRA);
+  m_apcSlicePilot->setAssociatedIRAPType(m_associatedIRAPType);
 
   // Skip pictures due to random access
   if (isRandomAccessSkipPicture(iSkipFrame, iPOCLastDisplay))
   {
+    m_prevSliceSkipped = true;
+    m_skippedPOC = m_apcSlicePilot->getPOC();
     return false;
   }
   // Skip TFD pictures associated with BLA/BLANT pictures
   if (isSkipPictureForBLA(iPOCLastDisplay))
   {
+    m_prevSliceSkipped = true;
+    m_skippedPOC = m_apcSlicePilot->getPOC();
     return false;
   }
+  
+  // clear previous slice skipped flag
+  m_prevSliceSkipped = false;
 
   //we should only get a different poc for a new picture (with CTU address==0)
   if (m_apcSlicePilot->isNextSlice() && m_apcSlicePilot->getPOC()!=m_prevPOC && !m_bFirstSliceInSequence && (!m_apcSlicePilot->getSliceCurStartCUAddr()==0))
@@ -415,6 +409,25 @@ Bool TDecTop::xDecodeSlice(InputNALUnit &nalu, Int &iSkipFrame, Int iPOCLastDisp
     //  Get a new picture buffer
     xGetNewPicBuffer (m_apcSlicePilot, pcPic);
 
+    Bool isField = false;
+    Bool isTff = false;
+    
+    if(!m_SEIs.empty())
+    {
+      // Check if any new Picture Timing SEI has arrived
+      SEIMessages pictureTimingSEIs = extractSeisByType (m_SEIs, SEI::PICTURE_TIMING);
+      if (pictureTimingSEIs.size()>0)
+      {
+        SEIPictureTiming* pictureTiming = (SEIPictureTiming*) *(pictureTimingSEIs.begin());
+        isField = (pictureTiming->m_picStruct == 1) || (pictureTiming->m_picStruct == 2);
+        isTff =  (pictureTiming->m_picStruct == 1);
+      }
+    }
+    
+    //Set Field/Frame coding mode
+    m_pcPic->setField(isField);
+    m_pcPic->setTopField(isTff);
+    
     // transfer any SEI messages that have been received to the picture
     pcPic->setSEIs(m_SEIs);
     m_SEIs.clear();
@@ -545,13 +558,9 @@ Bool TDecTop::xDecodeSlice(InputNALUnit &nalu, Int &iSkipFrame, Int iPOCLastDisp
 
   if (bNextSlice)
   {
-    pcSlice->checkCRA(pcSlice->getRPS(), m_pocCRA, m_prevRAPisBLA, m_cListPic );
+    pcSlice->checkCRA(pcSlice->getRPS(), m_pocCRA, m_associatedIRAPType, m_cListPic );
     // Set reference list
-#if FIX1071
     pcSlice->setRefPicList( m_cListPic, true );
-#else
-    pcSlice->setRefPicList( m_cListPic );
-#endif
     
     // For generalized B
     // note: maybe not existed case (always L0 is copied to L1 if L1 is empty)
@@ -604,7 +613,6 @@ Bool TDecTop::xDecodeSlice(InputNALUnit &nalu, Int &iSkipFrame, Int iPOCLastDisp
     {
       pcSlice->setScalingList ( pcSlice->getPPS()->getScalingList()  );
     }
-    pcSlice->getScalingList()->setUseTransformSkip(pcSlice->getPPS()->getUseTransformSkip());
     if(!pcSlice->getPPS()->getScalingListPresentFlag() && !pcSlice->getSPS()->getScalingListPresentFlag())
     {
       pcSlice->setDefaultScalingList();
@@ -619,10 +627,9 @@ Bool TDecTop::xDecodeSlice(InputNALUnit &nalu, Int &iSkipFrame, Int iPOCLastDisp
   }
 
   //  Decode a picture
-  m_cGopDecoder.decompressSlice(nalu.m_Bitstream, pcPic, bPicComplete);
-  
+  m_cGopDecoder.decompressSlice(nalu.m_Bitstream, pcPic);
+
   m_bFirstSliceInPicture = false;
-  m_digestCanBeChecked = false;
   m_uiSliceIdx++;
 
   return false;
@@ -655,16 +662,6 @@ Void TDecTop::xDecodeSEI( TComInputBitstream* bs, const NalUnitType nalUnitType 
   if(nalUnitType == NAL_UNIT_SUFFIX_SEI)
   {
     m_seiReader.parseSEImessage( bs, m_pcPic->getSEIs(), nalUnitType, m_parameterSetManagerDecoder.getActiveSPS() );
-    if (m_decodedPictureHashSEIEnabled && m_digestCanBeChecked)
-    {
-      SEIMessages pictureHashes = getSeisByType(m_pcPic->getSEIs(), SEI::DECODED_PICTURE_HASH );
-      const SEIDecodedPictureHash *hash = ( pictureHashes.size() > 0 ) ? (SEIDecodedPictureHash*) *(pictureHashes.begin()) : NULL;
-      if (pictureHashes.size() > 1)
-      {
-        printf ("Warning: Got multiple decoded picture hash SEI messages. Using first.");
-      }
-      calcAndPrintHashStatus(*m_pcPic->getPicYuvRec(), hash);
-    }
   }
   else
   {
@@ -683,7 +680,7 @@ Void TDecTop::xDecodeSEI( TComInputBitstream* bs, const NalUnitType nalUnitType 
   }
 }
 
-Bool TDecTop::decode(InputNALUnit& nalu, Int& iSkipFrame, Int& iPOCLastDisplay, Bool& bPicComplete)
+Bool TDecTop::decode(InputNALUnit& nalu, Int& iSkipFrame, Int& iPOCLastDisplay)
 {
   // Initialize entropy decoder
   m_cEntropyDecoder.setEntropyDecoder (&m_cCavlcDecoder);
@@ -710,7 +707,7 @@ Bool TDecTop::decode(InputNALUnit& nalu, Int& iSkipFrame, Int& iPOCLastDisplay, 
 
     case NAL_UNIT_CODED_SLICE_TRAIL_R:
     case NAL_UNIT_CODED_SLICE_TRAIL_N:
-    case NAL_UNIT_CODED_SLICE_TLA_R:
+    case NAL_UNIT_CODED_SLICE_TSA_R:
     case NAL_UNIT_CODED_SLICE_TSA_N:
     case NAL_UNIT_CODED_SLICE_STSA_R:
     case NAL_UNIT_CODED_SLICE_STSA_N:
@@ -724,10 +721,29 @@ Bool TDecTop::decode(InputNALUnit& nalu, Int& iSkipFrame, Int& iPOCLastDisplay, 
     case NAL_UNIT_CODED_SLICE_RADL_R:
     case NAL_UNIT_CODED_SLICE_RASL_N:
     case NAL_UNIT_CODED_SLICE_RASL_R:
-      return xDecodeSlice(nalu, iSkipFrame, iPOCLastDisplay, bPicComplete);
+      return xDecodeSlice(nalu, iSkipFrame, iPOCLastDisplay);
       break;
+      
+    case NAL_UNIT_EOS:
+      m_associatedIRAPType = NAL_UNIT_INVALID;
+      m_pocCRA = 0;
+      m_pocRandomAccess = MAX_INT;
+      m_prevPOC = MAX_INT;
+      m_bFirstSliceInPicture = true;
+      m_bFirstSliceInSequence = true;
+      m_prevSliceSkipped = false;
+      m_skippedPOC = 0;
+      return false;
+      
+    case NAL_UNIT_ACCESS_UNIT_DELIMITER:
+      // TODO: process AU delimiter
+      return false;
+      
+    case NAL_UNIT_EOB:
+      return false;
+      
     default:
-      assert (1);
+      assert (0);
   }
 
   return false;
@@ -741,7 +757,8 @@ Bool TDecTop::decode(InputNALUnit& nalu, Int& iSkipFrame, Int& iPOCLastDisplay, 
  */
 Bool TDecTop::isSkipPictureForBLA(Int& iPOCLastDisplay)
 {
-  if (m_prevRAPisBLA && m_apcSlicePilot->getPOC() < m_pocCRA && (m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_RASL_R || m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_RASL_N))
+  if ((m_associatedIRAPType == NAL_UNIT_CODED_SLICE_BLA_N_LP || m_associatedIRAPType == NAL_UNIT_CODED_SLICE_BLA_W_LP || m_associatedIRAPType == NAL_UNIT_CODED_SLICE_BLA_W_RADL) && 
+       m_apcSlicePilot->getPOC() < m_pocCRA && (m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_RASL_R || m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_RASL_N))
   {
     iPOCLastDisplay++;
     return true;
@@ -802,85 +819,6 @@ Bool TDecTop::isRandomAccessSkipPicture(Int& iSkipFrame,  Int& iPOCLastDisplay)
   }
   // if we reach here, then the picture is not skipped.
   return false; 
-}
-
-/**
- * Calculate and print hash for pic, compare to picture_digest SEI if
- * present in seis.  seis may be NULL.  Hash is printed to stdout, in
- * a manner suitable for the status line. Theformat is:
- *  [Hash_type:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,(yyy)]
- * Where, x..x is the hash
- *        yyy has the following meanings:
- *            OK          - calculated hash matches the SEI message
- *            ***ERROR*** - calculated hash does not match the SEI message
- *            unk         - no SEI message was available for comparison
- */
-static void calcAndPrintHashStatus(TComPicYuv& pic, const SEIDecodedPictureHash* pictureHashSEI)
-{
-  /* calculate MD5sum for entire reconstructed picture */
-  UChar recon_digest[3][16];
-  Int numChar=0;
-  const Char* hashType = "\0";
-
-  if (pictureHashSEI)
-  {
-    switch (pictureHashSEI->method)
-    {
-    case SEIDecodedPictureHash::MD5:
-      {
-        hashType = "MD5";
-        calcMD5(pic, recon_digest);
-        numChar = 16;
-        break;
-      }
-    case SEIDecodedPictureHash::CRC:
-      {
-        hashType = "CRC";
-        calcCRC(pic, recon_digest);
-        numChar = 2;
-        break;
-      }
-    case SEIDecodedPictureHash::CHECKSUM:
-      {
-        hashType = "Checksum";
-        calcChecksum(pic, recon_digest);
-        numChar = 4;
-        break;
-      }
-    default:
-      {
-        assert (!"unknown hash type");
-      }
-    }
-  }
-
-  /* compare digest against received version */
-  const Char* ok = "(unk)";
-  Bool mismatch = false;
-
-  if (pictureHashSEI)
-  {
-    ok = "(OK)";
-    for(Int yuvIdx = 0; yuvIdx < 3; yuvIdx++)
-    {
-      for (UInt i = 0; i < numChar; i++)
-      {
-        if (recon_digest[yuvIdx][i] != pictureHashSEI->digest[yuvIdx][i])
-        {
-          ok = "(***ERROR***)";
-          mismatch = true;
-        }
-      }
-    }
-  }
-
-  printf("[%s:%s,%s] ", hashType, digestToString(recon_digest, numChar), ok);
-
-  if (mismatch)
-  {
-    g_md5_mismatch = true;
-    printf("[rx%s:%s] ", hashType, digestToString(pictureHashSEI->digest, numChar));
-  }
 }
 
 //! \}

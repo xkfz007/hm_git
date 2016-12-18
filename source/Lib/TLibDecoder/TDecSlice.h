@@ -64,7 +64,6 @@ private:
   // access channel
   TDecEntropy*    m_pcEntropyDecoder;
   TDecCu*         m_pcCuDecoder;
-  UInt            m_uiCurrSliceIdx;
 
   TDecSbac*       m_pcBufferSbacDecoders;   ///< line to store temporary contexts, one per column of tiles.
   TDecBinCABAC*   m_pcBufferBinCABACs;
@@ -80,7 +79,7 @@ public:
   Void  create            ();
   Void  destroy           ();
   
-  Void  decompressSlice   ( TComInputBitstream** ppcSubstreams,   TComPic*& rpcPic, TDecSbac* pcSbacDecoder, TDecSbac* pcSbacDecoders, Bool& bPicComplete );
+  Void  decompressSlice   ( TComInputBitstream** ppcSubstreams,   TComPic*& rpcPic, TDecSbac* pcSbacDecoder, TDecSbac* pcSbacDecoders );
   Void      initCtxMem(  UInt i );
   Void      setCtxMem( TDecSbac* sb, Int b )   { CTXMem[b] = sb; }
   Int       getCtxMemSize( )                   { return (Int)CTXMem.size(); }

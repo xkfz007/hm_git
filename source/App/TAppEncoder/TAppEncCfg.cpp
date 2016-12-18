@@ -240,16 +240,6 @@ static istream& operator>>(istream &in, Level::Name &level)
     \param  argv        array of arguments
     \retval             true when success
  */
-Double RateTol;
-Int ConstRF;
-Bool LCURC;
-Int VBV_MaxRate;
-Int VBV_BufSize;
-Double VBV_Init;
-Int QPStep;
-Double Decay;
-Double IPFactor;
-Bool AdaptiveBits;
 Bool TAppEncCfg::parseCfg( Int argc, Char* argv[] )
 {
   Bool do_help = false;
@@ -292,6 +282,10 @@ Bool TAppEncCfg::parseCfg( Int argc, Char* argv[] )
   ("FrameRate,-fr",         m_iFrameRate,          0, "Frame rate")
   ("FrameSkip,-fs",         m_FrameSkip,          0u, "Number of frames to skip at start of input YUV")
   ("FramesToBeEncoded,f",   m_framesToBeEncoded,   0, "Number of frames to be encoded (default=all)")
+  
+  //Field coding parameters
+  ("FieldCoding", m_isField, false, "Signals if it's a field based coding")
+  ("TopFieldFirst, Tff", m_isTopFieldFirst, false, "In case of field based coding, signals whether if it's a top field first or not")
   
   // Profile and level
   ("Profile", m_profile,   Profile::NONE, "Profile to be used when encoding (Incomplete)")
@@ -375,7 +369,9 @@ Bool TAppEncCfg::parseCfg( Int argc, Char* argv[] )
   ("SAO",                      m_bUseSAO,                   true,  "Enable Sample Adaptive Offset")
   ("MaxNumOffsetsPerPic",      m_maxNumOffsetsPerPic,       2048,  "Max number of SAO offset per picture (Default: 2048)")   
   ("SAOLcuBoundary",           m_saoLcuBoundary,            false, "0: right/bottom LCU boundary areas skipped from SAO parameter estimation, 1: non-deblocked pixels are used for those areas")
+#if !HM_CLEANUP_SAO
   ("SAOLcuBasedOptimization",  m_saoLcuBasedOptimization,   true,  "0: SAO picture-based optimization, 1: SAO LCU-based optimization ")
+#endif  
   ("SliceMode",                m_sliceMode,                0,     "0: Disable all Recon slice limits, 1: Enforce max # of LCUs, 2: Enforce max # of bytes, 3:specify tiles per dependent slice")
   ("SliceArgument",            m_sliceArgument,            0,     "Depending on SliceMode being:"
                                                                    "\t1: max number of CTUs per slice"
@@ -426,35 +422,13 @@ Bool TAppEncCfg::parseCfg( Int argc, Char* argv[] )
   ("FDM", m_useFastDecisionForMerge, true, "Fast decision for Merge RD Cost") 
   ("CFM", m_bUseCbfFastMode, false, "Cbf fast mode setting")
   ("ESD", m_useEarlySkipDetection, false, "Early SKIP detection setting")
-#if RATE_CONTROL_LAMBDA_DOMAIN
   ( "RateControl",         m_RCEnableRateControl,   false, "Rate control: enable rate control" )
   ( "TargetBitrate",       m_RCTargetBitrate,           0, "Rate control: target bitrate" )
-#if M0036_RC_IMPROVEMENT
   ( "KeepHierarchicalBit", m_RCKeepHierarchicalBit,     0, "Rate control: 0: equal bit allocation; 1: fixed ratio bit allocation; 2: adaptive ratio bit allocation" )
-#else
-  ( "KeepHierarchicalBit", m_RCKeepHierarchicalBit, false, "Rate control: keep hierarchical bit allocation in rate control algorithm" )
-#endif
   ( "LCULevelRateControl", m_RCLCULevelRC,           true, "Rate control: true: LCU level RC; false: picture level RC" )
   ( "RCLCUSeparateModel",  m_RCUseLCUSeparateModel,  true, "Rate control: use LCU level separate R-lambda model" )
   ( "InitialQP",           m_RCInitialQP,               0, "Rate control: initial QP" )
   ( "RCForceIntraQP",      m_RCForceIntraQP,        false, "Rate control: force intra QP to be equal to initial QP" )
-#else
-  ("RateControl,-rc", m_enableRateCtrl, false, "Rate control on/off")
-  ("TargetBitrate,-tbr", m_targetBitrate, 0, "Input target bitrate(kbps)")
-  ("NumLCUInUnit,-nu", m_numLCUInUnit, 0, "Number of LCUs in an Unit")
-  ("RateTol,-rt",RateTol,1.0,"Rate tolerance for RC accuracy")
-  ("ConstRF,-crf",ConstRF,-1,"Quality-based VBR (0-51) [23.0]")
-  ("QPStep",QPStep,2,"Set max QP step [2]")
-  ("Decay",Decay,1.0,"Set decay ratio [1.0]")
-  ("IPFactor",IPFactor,1.0,"Set ip factor [1.0]")
-#if _USE_VBV_
-  ("VBV-MaxRate",VBV_MaxRate,0,"Max local bitrate (kbit/s) [0]")
-  ("VBV-BufSize",VBV_BufSize,0,"Set size of the VBV buffer (kbit) [0]")
-  ("VBV-Init",VBV_Init,0.9,"Initial VBV buffer occupancy [0.9]")
-#endif
-  ("LCURC,-lrc",LCURC,false,"LCU level Rate Control")
-  ("AdaptiveBits",AdaptiveBits,false,"LCU level Rate Control")
-#endif
 
   ("TransquantBypassEnableFlag", m_TransquantBypassEnableFlag, false, "transquant_bypass_enable_flag indicator in PPS")
   ("CUTransquantBypassFlagValue", m_CUTransquantBypassFlagValue, false, "Fixed cu_transquant_bypass_flag value, when transquant_bypass_enable_flag is enabled")
@@ -558,7 +532,17 @@ Bool TAppEncCfg::parseCfg( Int argc, Char* argv[] )
   }
   po::setDefaults(opts);
   const list<const Char*>& argv_unhandled = po::scanArgv(opts, argc, (const Char**) argv);
-
+  
+  if(m_isField)
+  {
+    //Frame height
+    m_iSourceHeightOrg = m_iSourceHeight;
+    //Field height
+    m_iSourceHeight = m_iSourceHeight >> 1;
+    //number of fields to encode
+    m_framesToBeEncoded *= 2;
+  }
+  
   for (list<const Char*>::const_iterator it = argv_unhandled.begin(); it != argv_unhandled.end(); it++)
   {
     fprintf(stderr, "Unhandled argument ignored: `%s'\n", *it);
@@ -579,13 +563,7 @@ Bool TAppEncCfg::parseCfg( Int argc, Char* argv[] )
   m_pchBitstreamFile = cfg_BitstreamFile.empty() ? NULL : strdup(cfg_BitstreamFile.c_str());
   m_pchReconFile = cfg_ReconFile.empty() ? NULL : strdup(cfg_ReconFile.c_str());
   m_pchdQPFile = cfg_dQPFile.empty() ? NULL : strdup(cfg_dQPFile.c_str());
-
-  extern string seqname;
-  int pos=cfg_InputFile.find_last_of('\\');
-  if(pos==string::npos)
-	  pos=cfg_InputFile.find_last_of('/');
-  seqname=cfg_InputFile.substr(pos+1);
-
+  
   Char* pColumnWidth = cfg_ColumnWidth.empty() ? NULL: strdup(cfg_ColumnWidth.c_str());
   Char* pRowHeight = cfg_RowHeight.empty() ? NULL : strdup(cfg_RowHeight.c_str());
   if( m_iUniformSpacingIdr == 0 && m_iNumColumnsMinus1 > 0 )
@@ -675,6 +653,11 @@ Bool TAppEncCfg::parseCfg( Int argc, Char* argv[] )
       {
         m_aiPad[1] = m_confBottom = ((m_iSourceHeight / minCuSize) + 1) * minCuSize - m_iSourceHeight;
         m_iSourceHeight += m_confBottom;
+        if ( m_isField )
+        {
+          m_iSourceHeightOrg += m_confBottom << 1;
+          m_aiPad[1] = m_confBottom << 1;
+        }
       }
       if (m_aiPad[0] % TComSPS::getWinUnitX(CHROMA_420) != 0)
       {
@@ -835,12 +818,22 @@ Void TAppEncCfg::xCheckParameter()
     fprintf(stderr, "**          decoder requires this option to be enabled.         **\n");
     fprintf(stderr, "******************************************************************\n");
   }
+  if( m_profile==Profile::NONE )
+  {
+    fprintf(stderr, "***************************************************************************\n");
+    fprintf(stderr, "** WARNING: For conforming bitstreams a valid Profile value must be set! **\n");
+    fprintf(stderr, "***************************************************************************\n");
+  }
+  if( m_level==Level::NONE )
+  {
+    fprintf(stderr, "***************************************************************************\n");
+    fprintf(stderr, "** WARNING: For conforming bitstreams a valid Level value must be set!   **\n");
+    fprintf(stderr, "***************************************************************************\n");
+  }
 
   Bool check_failed = false; /* abort if there is a fatal configuration problem */
 #define xConfirmPara(a,b) check_failed |= confirmPara(a,b)
   // check range of parameters
-  xConfirmPara( m_profile==Profile::NONE,                                                 "Profile must be set!"  );
-  xConfirmPara( m_level==Level::NONE,                                                     "Level must be set!"  );
   xConfirmPara( m_inputBitDepthY < 8,                                                     "InputBitDepth must be at least 8" );
   xConfirmPara( m_inputBitDepthC < 8,                                                     "InputBitDepthC must be at least 8" );
   xConfirmPara( m_iFrameRate <= 0,                                                          "Frame rate must be more than 1" );
@@ -850,8 +843,8 @@ Void TAppEncCfg::xCheckParameter()
   xConfirmPara( (m_iIntraPeriod > 0 && m_iIntraPeriod < m_iGOPSize) || m_iIntraPeriod == 0, "Intra period must be more than GOP size, or -1 , not 0" );
   xConfirmPara( m_iDecodingRefreshType < 0 || m_iDecodingRefreshType > 2,                   "Decoding Refresh Type must be equal to 0, 1 or 2" );
   xConfirmPara( m_iQP <  -6 * (m_internalBitDepthY - 8) || m_iQP > 51,                    "QP exceeds supported range (-QpBDOffsety to 51)" );
-  xConfirmPara( m_loopFilterBetaOffsetDiv2 < -13 || m_loopFilterBetaOffsetDiv2 > 13,          "Loop Filter Beta Offset div. 2 exceeds supported range (-13 to 13)");
-  xConfirmPara( m_loopFilterTcOffsetDiv2 < -13 || m_loopFilterTcOffsetDiv2 > 13,              "Loop Filter Tc Offset div. 2 exceeds supported range (-13 to 13)");
+  xConfirmPara( m_loopFilterBetaOffsetDiv2 < -6 || m_loopFilterBetaOffsetDiv2 > 6,          "Loop Filter Beta Offset div. 2 exceeds supported range (-6 to 6)");
+  xConfirmPara( m_loopFilterTcOffsetDiv2 < -6 || m_loopFilterTcOffsetDiv2 > 6,              "Loop Filter Tc Offset div. 2 exceeds supported range (-6 to 6)");
   xConfirmPara( m_iFastSearch < 0 || m_iFastSearch > 2,                                     "Fast Search Mode is not supported value (0:Full search  1:Diamond  2:PMVFAST)" );
   xConfirmPara( m_iSearchRange < 0 ,                                                        "Search Range must be more than 0" );
   xConfirmPara( m_bipredSearchRange < 0 ,                                                   "Search Range must be more than 0" );
@@ -961,9 +954,13 @@ Void TAppEncCfg::xCheckParameter()
   Bool verifiedGOP=false;
   Bool errorGOP=false;
   Int checkGOP=1;
-  Int numRefs = 1;
+  Int numRefs = m_isField ? 2 : 1;
   Int refList[MAX_NUM_REF_PICS+1];
   refList[0]=0;
+  if(m_isField)
+  {
+    refList[1] = 1;
+  }
   Bool isOK[MAX_GOP];
   for(Int i=0; i<MAX_GOP; i++) 
   {
@@ -1341,7 +1338,6 @@ Void TAppEncCfg::xCheckParameter()
     xConfirmPara( m_extendedWhiteLevelLumaCodeValue < m_nominalWhiteLevelLumaCodeValue, "SEIToneMapExtendedWhiteLevelLumaCodeValue shall be greater than or equal to SEIToneMapNominalWhiteLevelLumaCodeValue");
   }
 
-#if RATE_CONTROL_LAMBDA_DOMAIN
   if ( m_RCEnableRateControl )
   {
     if ( m_RCForceIntraQP )
@@ -1354,21 +1350,6 @@ Void TAppEncCfg::xCheckParameter()
     }
     xConfirmPara( m_uiDeltaQpRD > 0, "Rate control cannot be used together with slice level multiple-QP optimization!\n" );
   }
-#else
-  if(m_enableRateCtrl)
-  {
-#ifndef X264_RATECONTROL_2006
-    Int numLCUInWidth  = (m_iSourceWidth  / m_uiMaxCUWidth) + (( m_iSourceWidth  %  m_uiMaxCUWidth ) ? 1 : 0);
-    Int numLCUInHeight = (m_iSourceHeight / m_uiMaxCUHeight)+ (( m_iSourceHeight %  m_uiMaxCUHeight) ? 1 : 0);
-    Int numLCUInPic    =  numLCUInWidth * numLCUInHeight;
-
-    xConfirmPara( (numLCUInPic % m_numLCUInUnit) != 0, "total number of LCUs in a frame should be completely divided by NumLCUInUnit" );
-
-    m_iMaxDeltaQP       = MAX_DELTA_QP;
-    m_iMaxCuDQPDepth    = MAX_CUDQP_DEPTH;
-#endif
-  }
-#endif
 
   xConfirmPara(!m_TransquantBypassEnableFlag && m_CUTransquantBypassFlagValue, "CUTransquantBypassFlagValue cannot be 1 when TransquantBypassEnableFlag is 0");
 
@@ -1417,7 +1398,24 @@ Void TAppEncCfg::xPrintParameter()
   printf("Reconstruction File          : %s\n", m_pchReconFile          );
   printf("Real     Format              : %dx%d %dHz\n", m_iSourceWidth - m_confLeft - m_confRight, m_iSourceHeight - m_confTop - m_confBottom, m_iFrameRate );
   printf("Internal Format              : %dx%d %dHz\n", m_iSourceWidth, m_iSourceHeight, m_iFrameRate );
-  printf("Frame index                  : %u - %d (%d frames)\n", m_FrameSkip, m_FrameSkip+m_framesToBeEncoded-1, m_framesToBeEncoded );
+  if (m_isField)
+  {
+    printf("Frame/Field          : Field based coding\n");
+    printf("Field index          : %u - %d (%d fields)\n", m_FrameSkip, m_FrameSkip+m_framesToBeEncoded-1, m_framesToBeEncoded );
+    if (m_isTopFieldFirst)
+    {
+      printf("Field Order            : Top field first\n");
+    }
+    else
+    {
+      printf("Field Order            : Bottom field first\n");
+    }
+  }
+  else
+  {
+    printf("Frame/Field                  : Frame based coding\n");
+    printf("Frame index                  : %u - %d (%d frames)\n", m_FrameSkip, m_FrameSkip+m_framesToBeEncoded-1, m_framesToBeEncoded );
+  }
   printf("CU size / depth              : %d / %d\n", m_uiMaxCUWidth, m_uiMaxCUDepth );
   printf("RQT trans. size (min / max)  : %d / %d\n", 1 << m_uiQuadtreeTULog2MinSize, 1 << m_uiQuadtreeTULog2MaxSize );
   printf("Max RQT depth inter          : %d\n", m_uiQuadtreeTUMaxDepthInter);
@@ -1436,7 +1434,6 @@ Void TAppEncCfg::xPrintParameter()
   printf("GOP size                     : %d\n", m_iGOPSize );
   printf("Internal bit depth           : (Y:%d, C:%d)\n", m_internalBitDepthY, m_internalBitDepthC );
   printf("PCM sample bit depth         : (Y:%d, C:%d)\n", g_uiPCMBitDepthLuma, g_uiPCMBitDepthChroma );
-#if RATE_CONTROL_LAMBDA_DOMAIN
   printf("RateControl                  : %d\n", m_RCEnableRateControl );
   if(m_RCEnableRateControl)
   {
@@ -1447,26 +1444,6 @@ Void TAppEncCfg::xPrintParameter()
     printf("InitialQP                    : %d\n", m_RCInitialQP );
     printf("ForceIntraQP                 : %d\n", m_RCForceIntraQP );
   }
-#else
-  printf("RateControl                  : %d\n", m_enableRateCtrl);
-  if(m_enableRateCtrl)
-  {
-    printf("TargetBitrate                : %d\n", m_targetBitrate);
-    printf("NumLCUInUnit                 : %d\n", m_numLCUInUnit);
-	printf("RateTolerance                : %4.2f\n",RateTol);
-	printf("QPStep                       : %d\n",QPStep);
-	printf("ConstRateFactor              : %d\n",ConstRF);
-	printf("Decay                        : %4.2f\n",Decay);
-	printf("IPFactor                     : %4.2f\n",IPFactor);
-#if _USE_VBV_
-	printf("VBV-MaxRate                  : %d\n",VBV_MaxRate);
-	printf("VBV-BufSize                  : %d\n",VBV_BufSize);
-	printf("VBV-Init                     : %4.2f\n",VBV_Init);
-#endif
-	printf("LCURC                        : %d\n", LCURC);
-	printf("AdaptiveBits                 : %d\n", AdaptiveBits);
-  }
-#endif
   printf("Max Num Merge Candidates     : %d\n", m_maxNumMergeCand);
   printf("\n");
   
@@ -1500,8 +1477,9 @@ Void TAppEncCfg::xPrintParameter()
   printf("CIP:%d ", m_bUseConstrainedIntraPred);
   printf("SAO:%d ", (m_bUseSAO)?(1):(0));
   printf("PCM:%d ", (m_usePCM && (1<<m_uiPCMLog2MinSize) <= m_uiMaxCUWidth)? 1 : 0);
+#if !HM_CLEANUP_SAO
   printf("SAOLcuBasedOptimization:%d ", (m_saoLcuBasedOptimization)?(1):(0));
-
+#endif
   printf("LosslessCuEnabled:%d ", (m_useLossless)? 1:0 );
   printf("WPP:%d ", (Int)m_useWeightedPred);
   printf("WPB:%d ", (Int)m_useWeightedBiPred);

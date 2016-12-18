@@ -92,9 +92,6 @@ private:
   UInt64                  m_uiPicTotalBits;                     ///< total bits for the picture
   UInt64                  m_uiPicDist;                          ///< total distortion for the picture
   Double                  m_dPicRdCost;                         ///< picture-level RD cost
-#ifdef X264_RATECONTROL_2006
-  UInt64				  m_uiPicSAD;
-#endif
   Double*                 m_pdRdPicLambda;                      ///< array of lambda candidates
   Double*                 m_pdRdPicQp;                          ///< array of picture QP candidates (double-type for lambda)
   Int*                    m_piRdPicQp;                          ///< array of picture QP candidates (Int-type)
@@ -102,15 +99,7 @@ private:
   TEncSbac*               m_pcBufferSbacCoders;                 ///< line to store temporary contexts
   TEncBinCABAC*           m_pcBufferLowLatBinCoderCABACs;       ///< dependent tiles: line of bin coder CABAC
   TEncSbac*               m_pcBufferLowLatSbacCoders;           ///< dependent tiles: line to store temporary contexts
-                        ///< Rate control manager
-#ifdef X264_RATECONTROL_2006
-public:
-  x264_ratecontrol_t*	  m_pcRateCtrl;
-  x264_param_t* m_pcParam;
-private:
-#else
-  TEncRateCtrl*           m_pcRateCtrl; 
-#endif
+  TEncRateCtrl*           m_pcRateCtrl;                         ///< Rate control manager
   UInt                    m_uiSliceIdx;
   std::vector<TEncSbac*> CTXMem;
 public:
@@ -123,21 +112,12 @@ public:
   
   /// preparation of slice encoding (reference marking, QP and lambda)
   Void    initEncSlice        ( TComPic*  pcPic, Int pocLast, Int pocCurr, Int iNumPicRcvd,
-                                Int iGOPid,   TComSlice*& rpcSlice, TComSPS* pSPS, TComPPS *pPPS );
-#if RATE_CONTROL_LAMBDA_DOMAIN
+                                Int iGOPid,   TComSlice*& rpcSlice, TComSPS* pSPS, TComPPS *pPPS, bool isField );
   Void    resetQP             ( TComPic* pic, Int sliceQP, Double lambda );
-#else
-  Void    xLamdaRecalculation ( Int changeQP, Int idGOP, Int depth, SliceType eSliceType, TComSPS* pcSPS, TComSlice* pcSlice);
-#endif
   // compress and encode slice
   Void    precompressSlice    ( TComPic*& rpcPic                                );      ///< precompress slice for multi-loop opt.
   Void    compressSlice       ( TComPic*& rpcPic                                );      ///< analysis stage of slice
-#if RATE_CONTROL_INTRA
   Void    calCostSliceI       ( TComPic*& rpcPic );
-#endif
-#ifdef X264_RATECONTROL_2006 
-  Int calCostSliceI       ( TComPic*& rpcPic );
-#endif
   Void    encodeSlice         ( TComPic*& rpcPic, TComOutputBitstream* pcSubstreams  );
   
   // misc. functions

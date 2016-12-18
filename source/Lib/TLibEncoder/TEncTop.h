@@ -75,7 +75,7 @@ private:
   
   // encoder search
   TEncSearch              m_cSearch;                      ///< encoder search class
-  TEncEntropy*            m_pcEntropyCoder;                     ///< entropy encoder 
+  //TEncEntropy*            m_pcEntropyCoder;                     ///< entropy encoder
   TEncCavlc*              m_pcCavlcCoder;                       ///< CAVLC encoder  
   // coding tool
   TComTrQuant             m_cTrQuant;                     ///< transform & quantization class
@@ -119,21 +119,15 @@ private:
   TEncPreanalyzer         m_cPreanalyzer;                 ///< image characteristics analyzer for TM5-step3-like adaptive QP
 
   TComScalingList         m_scalingList;                 ///< quantization matrix information
-#ifdef X264_RATECONTROL_2006
-  x264_ratecontrol_t	  m_x264RC;
-  /* Rate control parameters */
-  x264_param_t			  m_param;
-#else
   TEncRateCtrl            m_cRateCtrl;                    ///< Rate control class
-#endif
-
+  
 protected:
   Void  xGetNewPicBuffer  ( TComPic*& rpcPic );           ///< get picture buffer which will be processed
   Void  xInitSPS          ();                             ///< initialize SPS from encoder options
   Void  xInitPPS          ();                             ///< initialize PPS from encoder options
   
   Void  xInitPPSforTiles  ();
-  Void  xInitRPS          ();                             ///< initialize PPS from encoder options
+  Void  xInitRPS          (Bool isFieldCoding);           ///< initialize PPS from encoder options
 
 public:
   TEncTop();
@@ -141,7 +135,7 @@ public:
   
   Void      create          ();
   Void      destroy         ();
-  Void      init            ();
+  Void      init            (Bool isFieldCoding);
   Void      deletePicBuffer ();
 
   Void      createWPPCoders(Int iNumSubstreams);
@@ -174,12 +168,7 @@ public:
   TComRdCost*             getRdCosts            () { return  m_pcRdCosts;             }
   TEncSbac****            getRDSbacCoders       () { return  m_ppppcRDSbacCoders;     }
   TEncSbac*               getRDGoOnSbacCoders   () { return  m_pcRDGoOnSbacCoders;   }
-#ifdef X264_RATECONTROL_2006
-  x264_ratecontrol_t*          getRateCtrl           () { return &m_x264RC;             }
-  x264_param_t*          getParam           () { return &m_param;             }
-#else
   TEncRateCtrl*           getRateCtrl           () { return &m_cRateCtrl;             }
-#endif
   TComSPS*                getSPS                () { return  &m_cSPS;                 }
   TComPPS*                getPPS                () { return  &m_cPPS;                 }
   Void selectReferencePictureSet(TComSlice* slice, Int POCCurr, Int GOPid );
@@ -193,9 +182,15 @@ public:
   Void encode( Bool bEos, TComPicYuv* pcPicYuvOrg, TComList<TComPicYuv*>& rcListPicYuvRecOut,
               std::list<AccessUnit>& accessUnitsOut, Int& iNumEncoded );  
 
-  void printSummary() { m_cGOPEncoder.printOutSummary (m_uiNumAllPicCoded); }
+  /// encode several number of pictures until end-of-sequence
+  Void encode( bool bEos, TComPicYuv* pcPicYuvOrg, TComList<TComPicYuv*>& rcListPicYuvRecOut,
+              std::list<AccessUnit>& accessUnitsOut, Int& iNumEncoded, bool isTff);
+  
+  Void printSummary(bool isField) { m_cGOPEncoder.printOutSummary (m_uiNumAllPicCoded, isField); }
+  
 };
 
 //! \}
 
 #endif // __TENCTOP__
+

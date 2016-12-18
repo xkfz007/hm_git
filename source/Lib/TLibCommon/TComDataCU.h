@@ -54,6 +54,7 @@
 //! \ingroup TLibCommon
 //! \{
 
+#if !HM_CLEANUP_SAO
 // ====================================================================================================================
 // Non-deblocking in-loop filter processing block data structure
 // ====================================================================================================================
@@ -91,6 +92,7 @@ struct NDBFBlockInfo
   NDBFBlockInfo():tileID(0), sliceID(0), startSU(0), endSU(0) {} //!< constructor
   const NDBFBlockInfo& operator= (const NDBFBlockInfo& src);  //!< "=" operator
 };
+#endif
 
 
 // ====================================================================================================================
@@ -154,9 +156,10 @@ private:
   Pel*          m_pcIPCMSampleCb;     ///< PCM sample buffer (Cb)
   Pel*          m_pcIPCMSampleCr;     ///< PCM sample buffer (Cr)
 
+#if !HM_CLEANUP_SAO
   Int*          m_piSliceSUMap;       ///< pointer of slice ID map
   std::vector<NDBFBlockInfo> m_vNDFBlock;
-
+#endif
   // -------------------------------------------------------------------------------------------------------------------
   // neighbour access variables
   // -------------------------------------------------------------------------------------------------------------------
@@ -199,9 +202,6 @@ private:
   UInt*         m_sliceStartCU;    ///< Start CU address of current slice
   UInt*         m_sliceSegmentStartCU; ///< Start CU address of current slice
   Char          m_codedQP;
-#ifdef X264_RATECONTROL_2006
-  Int                     m_LCUHadCost;
-#endif
 protected:
   
   /// add possible motion vector predictor candidates
@@ -234,10 +234,7 @@ public:
 #endif  
     );
   Void          destroy               ();
-#ifdef X264_RATECONTROL_2006
-  Int getLCUHadCost() { return m_LCUHadCost; }
-  void setLCUHadCost(int cost) { m_LCUHadCost=cost; }
-#endif
+  
   Void          initCU                ( TComPic* pcPic, UInt uiCUAddr );
   Void          initEstData           ( UInt uiDepth, Int qp );
   Void          initSubCU             ( TComDataCU* pcCU, UInt uiPartUnitIdx, UInt uiDepth, Int qp );
@@ -390,6 +387,7 @@ public:
   Void          setIPCMFlag           (UInt uiIdx, Bool b )     { m_pbIPCMFlag[uiIdx] = b;           }
   Void          setIPCMFlagSubParts   (Bool bIpcmFlag, UInt uiAbsPartIdx, UInt uiDepth);
 
+#if !HM_CLEANUP_SAO
   /// get slice ID for SU
   Int           getSUSliceID          (UInt uiIdx)              {return m_piSliceSUMap[uiIdx];      } 
 
@@ -404,6 +402,7 @@ public:
                                           ,std::vector<Bool>& LFCrossSliceBoundary
                                           ,Bool bTopTileBoundary, Bool bDownTileBoundary, Bool bLeftTileBoundary, Bool bRightTileBoundary
                                           ,Bool bIndependentTileBoundaryEnabled );
+#endif
   // -------------------------------------------------------------------------------------------------------------------
   // member functions for accessing partition information
   // -------------------------------------------------------------------------------------------------------------------
