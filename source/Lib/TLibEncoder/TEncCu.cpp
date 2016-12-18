@@ -39,6 +39,7 @@
 #include "TEncTop.h"
 #include "TEncCu.h"
 #include "TEncAnalyze.h"
+#include "TEncRateCtrl.h"
 
 #include <cmath>
 #include <algorithm>
@@ -94,7 +95,12 @@ Void TEncCu::create(UChar uhTotalDepth, UInt uiMaxWidth, UInt uiMaxHeight)
   }
   
   m_bEncodeDQP = false;
-#if RATE_CONTROL_LAMBDA_DOMAIN
+#ifdef X264_RATECONTROL_2006
+  m_LCUPredictionSAD = 0;
+  m_addSADDepth      = 0;
+  m_temporalSAD      = 0;
+#endif
+#if RATE_CONTROL_LAMBDA_DOMAIN && !M0036_RC_IMPROVEMENT
   m_LCUPredictionSAD = 0;
   m_addSADDepth      = 0;
   m_temporalSAD      = 0;
@@ -233,8 +239,13 @@ Void TEncCu::compressCU( TComDataCU*& rpcCU )
   // initialize CU data
   m_ppcBestCU[0]->initCU( rpcCU->getPic(), rpcCU->getAddr() );
   m_ppcTempCU[0]->initCU( rpcCU->getPic(), rpcCU->getAddr() );
+#ifdef X264_RATECONTROL_2006
+  m_addSADDepth      = 0;
+  m_LCUPredictionSAD = 0;
+  m_temporalSAD      = 0;
+#endif
 
-#if RATE_CONTROL_LAMBDA_DOMAIN
+#if RATE_CONTROL_LAMBDA_DOMAIN && !M0036_RC_IMPROVEMENT
   m_addSADDepth      = 0;
   m_LCUPredictionSAD = 0;
   m_temporalSAD      = 0;
@@ -430,9 +441,15 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, UInt u
 #else
   if(m_pcEncCfg->getUseRateCtrl())
   {
+#ifdef X264_RATECONTROL_2006
+    Int qp =x264_ratecontrol_qp(m_pcRateCtrl);
+    iMinQP  = Clip3( MIN_QP, MAX_QP, qp);
+    iMaxQP  = Clip3( MIN_QP, MAX_QP, qp);
+#else
     Int qp = m_pcRateCtrl->getUnitQP();
     iMinQP  = Clip3( MIN_QP, MAX_QP, qp);
     iMaxQP  = Clip3( MIN_QP, MAX_QP, qp);
+#endif
   }
 #endif
 
@@ -511,7 +528,7 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, UInt u
       }
     }
 
-#if RATE_CONTROL_LAMBDA_DOMAIN
+#if RATE_CONTROL_LAMBDA_DOMAIN && !M0036_RC_IMPROVEMENT
     if ( uiDepth <= m_addSADDepth )
     {
       m_LCUPredictionSAD += m_temporalSAD;
@@ -751,11 +768,15 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, UInt u
     {
       bSubBranch = true;
     }
+
   }
   else if(!(bSliceEnd && bInsidePicture))
   {
     bBoundary = true;
-#if RATE_CONTROL_LAMBDA_DOMAIN
+#ifdef X264_RATECONTROL_2006
+	m_addSADDepth++;
+#endif
+#if RATE_CONTROL_LAMBDA_DOMAIN && !M0036_RC_IMPROVEMENT
     m_addSADDepth++;
 #endif
   }
@@ -805,9 +826,15 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, UInt u
 #else
   if(m_pcEncCfg->getUseRateCtrl())
   {
+#ifdef X264_RATECONTROL_2006
+    Int qp =x264_ratecontrol_qp(m_pcRateCtrl);
+    iMinQP  = Clip3( MIN_QP, MAX_QP, qp);
+    iMaxQP  = Clip3( MIN_QP, MAX_QP, qp);
+#else
     Int qp = m_pcRateCtrl->getUnitQP();
     iMinQP  = Clip3( MIN_QP, MAX_QP, qp);
     iMaxQP  = Clip3( MIN_QP, MAX_QP, qp);
+#endif
   }
 #endif
   for (Int iQP=iMinQP; iQP<=iMaxQP; iQP++)
@@ -907,6 +934,7 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, UInt u
         {
 #if !RDO_WITHOUT_DQP_BITS
           m_pcEntropyCoder->resetBits();
+//		  printf("%s => ",__FUNCTION__);
           m_pcEntropyCoder->encodeQP( rpcTempCU, uiTargetPartIdx, false );
           rpcTempCU->getTotalBits() += m_pcEntropyCoder->getNumberOfWrittenBits(); // dQP bits
           if(m_pcEncCfg->getUseSBACRD())
@@ -1176,7 +1204,242 @@ Void TEncCu::xEncodeCU( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth )
   // --- write terminating bit ---
   finishCU(pcCU,uiAbsPartIdx,uiDepth);
 }
+#ifdef X264_RATECONTROL_2006
 
+Int xCalcHADs8x8_ISlice(Pel *piOrg, Int iStrideOrg) 
+{
+  Int k, i, j, jj;
+  Int diff[64], m1[8][8], m2[8][8], m3[8][8], iSumHad = 0;
+
+  for( k = 0; k < 64; k += 8 )
+  {
+    diff[k+0] = piOrg[0] ;
+    diff[k+1] = piOrg[1] ;
+    diff[k+2] = piOrg[2] ;
+    diff[k+3] = piOrg[3] ;
+    diff[k+4] = piOrg[4] ;
+    diff[k+5] = piOrg[5] ;
+    diff[k+6] = piOrg[6] ;
+    diff[k+7] = piOrg[7] ;
+ 
+    piOrg += iStrideOrg;
+  }
+  
+  //horizontal
+  for (j=0; j < 8; j++)
+  {
+    jj = j << 3;
+    m2[j][0] = diff[jj  ] + diff[jj+4];
+    m2[j][1] = diff[jj+1] + diff[jj+5];
+    m2[j][2] = diff[jj+2] + diff[jj+6];
+    m2[j][3] = diff[jj+3] + diff[jj+7];
+    m2[j][4] = diff[jj  ] - diff[jj+4];
+    m2[j][5] = diff[jj+1] - diff[jj+5];
+    m2[j][6] = diff[jj+2] - diff[jj+6];
+    m2[j][7] = diff[jj+3] - diff[jj+7];
+    
+    m1[j][0] = m2[j][0] + m2[j][2];
+    m1[j][1] = m2[j][1] + m2[j][3];
+    m1[j][2] = m2[j][0] - m2[j][2];
+    m1[j][3] = m2[j][1] - m2[j][3];
+    m1[j][4] = m2[j][4] + m2[j][6];
+    m1[j][5] = m2[j][5] + m2[j][7];
+    m1[j][6] = m2[j][4] - m2[j][6];
+    m1[j][7] = m2[j][5] - m2[j][7];
+    
+    m2[j][0] = m1[j][0] + m1[j][1];
+    m2[j][1] = m1[j][0] - m1[j][1];
+    m2[j][2] = m1[j][2] + m1[j][3];
+    m2[j][3] = m1[j][2] - m1[j][3];
+    m2[j][4] = m1[j][4] + m1[j][5];
+    m2[j][5] = m1[j][4] - m1[j][5];
+    m2[j][6] = m1[j][6] + m1[j][7];
+    m2[j][7] = m1[j][6] - m1[j][7];
+  }
+  
+  //vertical
+  for (i=0; i < 8; i++)
+  {
+    m3[0][i] = m2[0][i] + m2[4][i];
+    m3[1][i] = m2[1][i] + m2[5][i];
+    m3[2][i] = m2[2][i] + m2[6][i];
+    m3[3][i] = m2[3][i] + m2[7][i];
+    m3[4][i] = m2[0][i] - m2[4][i];
+    m3[5][i] = m2[1][i] - m2[5][i];
+    m3[6][i] = m2[2][i] - m2[6][i];
+    m3[7][i] = m2[3][i] - m2[7][i];
+    
+    m1[0][i] = m3[0][i] + m3[2][i];
+    m1[1][i] = m3[1][i] + m3[3][i];
+    m1[2][i] = m3[0][i] - m3[2][i];
+    m1[3][i] = m3[1][i] - m3[3][i];
+    m1[4][i] = m3[4][i] + m3[6][i];
+    m1[5][i] = m3[5][i] + m3[7][i];
+    m1[6][i] = m3[4][i] - m3[6][i];
+    m1[7][i] = m3[5][i] - m3[7][i];
+    
+    m2[0][i] = m1[0][i] + m1[1][i];
+    m2[1][i] = m1[0][i] - m1[1][i];
+    m2[2][i] = m1[2][i] + m1[3][i];
+    m2[3][i] = m1[2][i] - m1[3][i];
+    m2[4][i] = m1[4][i] + m1[5][i];
+    m2[5][i] = m1[4][i] - m1[5][i];
+    m2[6][i] = m1[6][i] + m1[7][i];
+    m2[7][i] = m1[6][i] - m1[7][i];
+  }
+  
+  for (i = 0; i < 8; i++)
+  {
+    for (j = 0; j < 8; j++)
+    {
+      iSumHad += abs(m2[i][j]);
+    }
+  }
+  iSumHad -= abs(m2[0][0]);
+  iSumHad =(iSumHad+2)>>2;
+  return(iSumHad);
+}
+#endif
+
+#if RATE_CONTROL_INTRA
+Int xCalcHADs8x8_ISlice(Pel *piOrg, Int iStrideOrg) 
+{
+  Int k, i, j, jj;
+  Int diff[64], m1[8][8], m2[8][8], m3[8][8], iSumHad = 0;
+
+  for( k = 0; k < 64; k += 8 )
+  {
+    diff[k+0] = piOrg[0] ;
+    diff[k+1] = piOrg[1] ;
+    diff[k+2] = piOrg[2] ;
+    diff[k+3] = piOrg[3] ;
+    diff[k+4] = piOrg[4] ;
+    diff[k+5] = piOrg[5] ;
+    diff[k+6] = piOrg[6] ;
+    diff[k+7] = piOrg[7] ;
+ 
+    piOrg += iStrideOrg;
+  }
+  
+  //horizontal
+  for (j=0; j < 8; j++)
+  {
+    jj = j << 3;
+    m2[j][0] = diff[jj  ] + diff[jj+4];
+    m2[j][1] = diff[jj+1] + diff[jj+5];
+    m2[j][2] = diff[jj+2] + diff[jj+6];
+    m2[j][3] = diff[jj+3] + diff[jj+7];
+    m2[j][4] = diff[jj  ] - diff[jj+4];
+    m2[j][5] = diff[jj+1] - diff[jj+5];
+    m2[j][6] = diff[jj+2] - diff[jj+6];
+    m2[j][7] = diff[jj+3] - diff[jj+7];
+    
+    m1[j][0] = m2[j][0] + m2[j][2];
+    m1[j][1] = m2[j][1] + m2[j][3];
+    m1[j][2] = m2[j][0] - m2[j][2];
+    m1[j][3] = m2[j][1] - m2[j][3];
+    m1[j][4] = m2[j][4] + m2[j][6];
+    m1[j][5] = m2[j][5] + m2[j][7];
+    m1[j][6] = m2[j][4] - m2[j][6];
+    m1[j][7] = m2[j][5] - m2[j][7];
+    
+    m2[j][0] = m1[j][0] + m1[j][1];
+    m2[j][1] = m1[j][0] - m1[j][1];
+    m2[j][2] = m1[j][2] + m1[j][3];
+    m2[j][3] = m1[j][2] - m1[j][3];
+    m2[j][4] = m1[j][4] + m1[j][5];
+    m2[j][5] = m1[j][4] - m1[j][5];
+    m2[j][6] = m1[j][6] + m1[j][7];
+    m2[j][7] = m1[j][6] - m1[j][7];
+  }
+  
+  //vertical
+  for (i=0; i < 8; i++)
+  {
+    m3[0][i] = m2[0][i] + m2[4][i];
+    m3[1][i] = m2[1][i] + m2[5][i];
+    m3[2][i] = m2[2][i] + m2[6][i];
+    m3[3][i] = m2[3][i] + m2[7][i];
+    m3[4][i] = m2[0][i] - m2[4][i];
+    m3[5][i] = m2[1][i] - m2[5][i];
+    m3[6][i] = m2[2][i] - m2[6][i];
+    m3[7][i] = m2[3][i] - m2[7][i];
+    
+    m1[0][i] = m3[0][i] + m3[2][i];
+    m1[1][i] = m3[1][i] + m3[3][i];
+    m1[2][i] = m3[0][i] - m3[2][i];
+    m1[3][i] = m3[1][i] - m3[3][i];
+    m1[4][i] = m3[4][i] + m3[6][i];
+    m1[5][i] = m3[5][i] + m3[7][i];
+    m1[6][i] = m3[4][i] - m3[6][i];
+    m1[7][i] = m3[5][i] - m3[7][i];
+    
+    m2[0][i] = m1[0][i] + m1[1][i];
+    m2[1][i] = m1[0][i] - m1[1][i];
+    m2[2][i] = m1[2][i] + m1[3][i];
+    m2[3][i] = m1[2][i] - m1[3][i];
+    m2[4][i] = m1[4][i] + m1[5][i];
+    m2[5][i] = m1[4][i] - m1[5][i];
+    m2[6][i] = m1[6][i] + m1[7][i];
+    m2[7][i] = m1[6][i] - m1[7][i];
+  }
+  
+  for (i = 0; i < 8; i++)
+  {
+    for (j = 0; j < 8; j++)
+    {
+      iSumHad += abs(m2[i][j]);
+    }
+  }
+  iSumHad -= abs(m2[0][0]);
+  iSumHad =(iSumHad+2)>>2;
+  return(iSumHad);
+}
+
+Int  TEncCu::updateLCUDataISlice(TComDataCU* pcCU, Int LCUIdx, Int width, Int height)
+{
+  Int  xBl, yBl; 
+  const Int iBlkSize = 8;
+
+  Pel* pOrgInit   = pcCU->getPic()->getPicYuvOrg()->getLumaAddr(pcCU->getAddr(), 0);
+  Int  iStrideOrig = pcCU->getPic()->getPicYuvOrg()->getStride();
+  Pel  *pOrg;
+
+  Int iSumHad = 0;
+  for ( yBl=0; (yBl+iBlkSize)<=height; yBl+= iBlkSize)
+  {
+    for ( xBl=0; (xBl+iBlkSize)<=width; xBl+= iBlkSize)
+    {
+      pOrg = pOrgInit + iStrideOrig*yBl + xBl; 
+      iSumHad += xCalcHADs8x8_ISlice(pOrg, iStrideOrig);
+    }
+  }
+  return(iSumHad);
+}
+#endif
+
+#ifdef X264_RATECONTROL_2006
+Int  TEncCu::updateLCUDataISlice(TComDataCU* pcCU, Int LCUIdx, Int width, Int height)
+{
+  Int  xBl, yBl; 
+  const Int iBlkSize = 8;
+
+  Pel* pOrgInit   = pcCU->getPic()->getPicYuvOrg()->getLumaAddr(pcCU->getAddr(), 0);
+  Int  iStrideOrig = pcCU->getPic()->getPicYuvOrg()->getStride();
+  Pel  *pOrg;
+
+  Int iSumHad = 0;
+  for ( yBl=0; (yBl+iBlkSize)<=height; yBl+= iBlkSize)
+  {
+    for ( xBl=0; (xBl+iBlkSize)<=width; xBl+= iBlkSize)
+    {
+      pOrg = pOrgInit + iStrideOrig*yBl + xBl; 
+      iSumHad += xCalcHADs8x8_ISlice(pOrg, iStrideOrig);
+    }
+  }
+  return(iSumHad);
+}
+#endif
 /** check RD costs for a CU block encoded with merge
  * \param rpcBestCU
  * \param rpcTempCU
@@ -1185,7 +1448,7 @@ Void TEncCu::xEncodeCU( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth )
 Void TEncCu::xCheckRDCostMerge2Nx2N( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, Bool *earlyDetectionSkipMode )
 {
   assert( rpcTempCU->getSlice()->getSliceType() != I_SLICE );
-  TComMvField  cMvFieldNeighbours[MRG_MAX_NUM_CANDS << 1]; // double length for mv of both lists
+  TComMvField  cMvFieldNeighbours[ 2 * MRG_MAX_NUM_CANDS ]; // double length for mv of both lists
   UChar uhInterDirNeighbours[MRG_MAX_NUM_CANDS];
   Int numValidMergeCand = 0;
 
@@ -1197,9 +1460,9 @@ Void TEncCu::xCheckRDCostMerge2Nx2N( TComDataCU*& rpcBestCU, TComDataCU*& rpcTem
   rpcTempCU->setPartSizeSubParts( SIZE_2Nx2N, 0, uhDepth ); // interprets depth relative to LCU level
   rpcTempCU->setCUTransquantBypassSubParts( m_pcEncCfg->getCUTransquantBypassFlagValue(), 0, uhDepth );
   rpcTempCU->getInterMergeCandidates( 0, 0, cMvFieldNeighbours,uhInterDirNeighbours, numValidMergeCand );
-
+  
   Int mergeCandBuffer[MRG_MAX_NUM_CANDS];
-  for( UInt ui = 0; ui < rpcTempCU->getSlice()->getMaxNumMergeCand(); ++ui )
+  for( UInt ui = 0; ui < numValidMergeCand; ++ui )
   {
     mergeCandBuffer[ui] = 0;
   }
@@ -1220,10 +1483,8 @@ Void TEncCu::xCheckRDCostMerge2Nx2N( TComDataCU*& rpcBestCU, TComDataCU*& rpcTem
   {
     for( UInt uiMergeCand = 0; uiMergeCand < numValidMergeCand; ++uiMergeCand )
     {
+      if(!(uiNoResidual==1 && mergeCandBuffer[uiMergeCand]==1))
       {
-        if(!(uiNoResidual==1 && mergeCandBuffer[uiMergeCand]==1))
-        {
-
         if( !(bestIsSkip && uiNoResidual == 0) )
         {
           // set MC parameters
@@ -1235,74 +1496,69 @@ Void TEncCu::xCheckRDCostMerge2Nx2N( TComDataCU*& rpcBestCU, TComDataCU*& rpcTem
           rpcTempCU->setInterDirSubParts( uhInterDirNeighbours[uiMergeCand], 0, 0, uhDepth ); // interprets depth relative to LCU level
           rpcTempCU->getCUMvField( REF_PIC_LIST_0 )->setAllMvField( cMvFieldNeighbours[0 + 2*uiMergeCand], SIZE_2Nx2N, 0, 0 ); // interprets depth relative to rpcTempCU level
           rpcTempCU->getCUMvField( REF_PIC_LIST_1 )->setAllMvField( cMvFieldNeighbours[1 + 2*uiMergeCand], SIZE_2Nx2N, 0, 0 ); // interprets depth relative to rpcTempCU level
-
-       // do MC
-       m_pcPredSearch->motionCompensation ( rpcTempCU, m_ppcPredYuvTemp[uhDepth] );
-       // estimate residual and encode everything
-       m_pcPredSearch->encodeResAndCalcRdInterCU( rpcTempCU,
-         m_ppcOrigYuv    [uhDepth],
-         m_ppcPredYuvTemp[uhDepth],
-         m_ppcResiYuvTemp[uhDepth],
-         m_ppcResiYuvBest[uhDepth],
-         m_ppcRecoYuvTemp[uhDepth],
-         (uiNoResidual? true:false));
-
-
-       if(uiNoResidual==0)
-       {
-         if(rpcTempCU->getQtRootCbf(0) == 0)
-         {
-           mergeCandBuffer[uiMergeCand] = 1;
-         }
-       }
-
-       rpcTempCU->setSkipFlagSubParts( rpcTempCU->getQtRootCbf(0) == 0, 0, uhDepth );
+          
+          // do MC
+          m_pcPredSearch->motionCompensation ( rpcTempCU, m_ppcPredYuvTemp[uhDepth] );
+          // estimate residual and encode everything
+          m_pcPredSearch->encodeResAndCalcRdInterCU( rpcTempCU,
+                                                    m_ppcOrigYuv    [uhDepth],
+                                                    m_ppcPredYuvTemp[uhDepth],
+                                                    m_ppcResiYuvTemp[uhDepth],
+                                                    m_ppcResiYuvBest[uhDepth],
+                                                    m_ppcRecoYuvTemp[uhDepth],
+                                                    (uiNoResidual? true:false));
+          
+          
+          if ( uiNoResidual == 0 && rpcTempCU->getQtRootCbf(0) == 0 )
+          {
+            // If no residual when allowing for one, then set mark to not try case where residual is forced to 0
+            mergeCandBuffer[uiMergeCand] = 1;
+          }
+          
+          rpcTempCU->setSkipFlagSubParts( rpcTempCU->getQtRootCbf(0) == 0, 0, uhDepth );
           Int orgQP = rpcTempCU->getQP( 0 );
           xCheckDQP( rpcTempCU );
           xCheckBestMode(rpcBestCU, rpcTempCU, uhDepth);
           rpcTempCU->initEstData( uhDepth, orgQP );
-
-
-      if( m_pcEncCfg->getUseFastDecisionForMerge() && !bestIsSkip )
-      {
-        bestIsSkip = rpcBestCU->getQtRootCbf(0) == 0;
-      }
-
-    }
-    }
-   }
-  }
-
-  if(uiNoResidual == 0 && m_pcEncCfg->getUseEarlySkipDetection())
-  {
-    if(rpcBestCU->getQtRootCbf( 0 ) == 0)
-    {
-      if( rpcBestCU->getMergeFlag( 0 ))
-      {
-        *earlyDetectionSkipMode = true;
-      }
-      else
-      {
-        Int absoulte_MV=0;
-        for ( UInt uiRefListIdx = 0; uiRefListIdx < 2; uiRefListIdx++ )
-        {
-          if ( rpcBestCU->getSlice()->getNumRefIdx( RefPicList( uiRefListIdx ) ) > 0 )
+          
+          if( m_pcEncCfg->getUseFastDecisionForMerge() && !bestIsSkip )
           {
-            TComCUMvField* pcCUMvField = rpcBestCU->getCUMvField(RefPicList( uiRefListIdx ));
-            Int iHor = pcCUMvField->getMvd( 0 ).getAbsHor();
-            Int iVer = pcCUMvField->getMvd( 0 ).getAbsVer();
-            absoulte_MV+=iHor+iVer;
+            bestIsSkip = rpcBestCU->getQtRootCbf(0) == 0;
           }
         }
-
-        if(absoulte_MV == 0)
+      }
+    }
+    
+    if(uiNoResidual == 0 && m_pcEncCfg->getUseEarlySkipDetection())
+    {
+      if(rpcBestCU->getQtRootCbf( 0 ) == 0)
+      {
+        if( rpcBestCU->getMergeFlag( 0 ))
         {
           *earlyDetectionSkipMode = true;
         }
+        else
+        {
+          Int absoulte_MV=0;
+          for ( UInt uiRefListIdx = 0; uiRefListIdx < 2; uiRefListIdx++ )
+          {
+            if ( rpcBestCU->getSlice()->getNumRefIdx( RefPicList( uiRefListIdx ) ) > 0 )
+            {
+              TComCUMvField* pcCUMvField = rpcBestCU->getCUMvField(RefPicList( uiRefListIdx ));
+              Int iHor = pcCUMvField->getMvd( 0 ).getAbsHor();
+              Int iVer = pcCUMvField->getMvd( 0 ).getAbsVer();
+              absoulte_MV+=iHor+iVer;
+            }
+          }
+          
+          if(absoulte_MV == 0)
+          {
+            *earlyDetectionSkipMode = true;
+          }
+        }
       }
     }
   }
- }
 }
 
 
@@ -1336,7 +1592,7 @@ Void TEncCu::xCheckRDCostInter( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, 
   }
 #endif
 
-#if RATE_CONTROL_LAMBDA_DOMAIN
+#if RATE_CONTROL_LAMBDA_DOMAIN && !M0036_RC_IMPROVEMENT
   if ( m_pcEncCfg->getUseRateCtrl() && m_pcEncCfg->getLCULevelRC() && ePartSize == SIZE_2Nx2N && uhDepth <= m_addSADDepth )
   {
     UInt SAD = m_pcRdCost->getSADPart( g_bitDepthY, m_ppcPredYuvTemp[uhDepth]->getLumaAddr(), m_ppcPredYuvTemp[uhDepth]->getStride(),
@@ -1398,6 +1654,7 @@ Void TEncCu::xCheckRDCostIntra( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, 
   {
     rpcTempCU->getTotalBins() = ((TEncBinCABAC *)((TEncSbac*)m_pcEntropyCoder->m_pcEntropyCoderIf)->getEncBinIf())->getBinsCoded();
   }
+
   rpcTempCU->getTotalCost() = m_pcRdCost->calcRdCost( rpcTempCU->getTotalBits(), rpcTempCU->getTotalDistortion() );
   
   xCheckDQP( rpcTempCU );
@@ -1471,6 +1728,12 @@ Void TEncCu::xCheckBestMode( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, UIn
     m_ppcPredYuvBest[uiDepth] = m_ppcPredYuvTemp[uiDepth];
     m_ppcPredYuvTemp[uiDepth] = pcYuv;
 
+#if _USE_RESI_
+    pcYuv = m_ppcResiYuvBest[uiDepth];
+    m_ppcResiYuvBest[uiDepth] = m_ppcResiYuvTemp[uiDepth];
+    m_ppcResiYuvTemp[uiDepth] = pcYuv;
+#endif
+
     // Change Reconstruction data
     pcYuv = m_ppcRecoYuvBest[uiDepth];
     m_ppcRecoYuvBest[uiDepth] = m_ppcRecoYuvTemp[uiDepth];
@@ -1494,6 +1757,7 @@ Void TEncCu::xCheckDQP( TComDataCU* pcCU )
     {
 #if !RDO_WITHOUT_DQP_BITS
       m_pcEntropyCoder->resetBits();
+//	  printf("%s => ",__FUNCTION__);
       m_pcEntropyCoder->encodeQP( pcCU, 0, false );
       pcCU->getTotalBits() += m_pcEntropyCoder->getNumberOfWrittenBits(); // dQP bits
       if(m_pcEncCfg->getUseSBACRD())
@@ -1536,6 +1800,12 @@ Void TEncCu::xCopyYuv2Pic(TComPic* rpcPic, UInt uiCUAddr, UInt uiAbsPartIdx, UIn
     UInt uiPartIdxY = ( ( uiAbsPartIdxInRaster / rpcPic->getNumPartInWidth() ) % uiSrcBlkWidth) / uiBlkWidth;
     UInt uiPartIdx = uiPartIdxY * ( uiSrcBlkWidth / uiBlkWidth ) + uiPartIdxX;
     m_ppcRecoYuvBest[uiSrcDepth]->copyToPicYuv( rpcPic->getPicYuvRec (), uiCUAddr, uiAbsPartIdx, uiDepth - uiSrcDepth, uiPartIdx);
+#if defined(X264_RATECONTROL_2006)
+	m_ppcPredYuvBest[uiSrcDepth]->copyToPicYuv( rpcPic->getPicYuvPred(), uiCUAddr, uiAbsPartIdx, uiDepth - uiSrcDepth, uiPartIdx);
+#endif
+#if _USE_RESI_
+	m_ppcResiYuvBest[uiSrcDepth]->copyToPicYuv( rpcPic->getPicYuvResi(), uiCUAddr, uiAbsPartIdx, uiDepth - uiSrcDepth, uiPartIdx);
+#endif
   }
   else
   {
@@ -1560,6 +1830,12 @@ Void TEncCu::xCopyYuv2Tmp( UInt uiPartUnitIdx, UInt uiNextDepth )
 {
   UInt uiCurrDepth = uiNextDepth - 1;
   m_ppcRecoYuvBest[uiNextDepth]->copyToPartYuv( m_ppcRecoYuvTemp[uiCurrDepth], uiPartUnitIdx );
+#if defined(X264_RATECONTROL_2006)
+  m_ppcPredYuvBest[uiNextDepth]->copyToPartYuv( m_ppcPredYuvTemp[uiCurrDepth], uiPartUnitIdx );
+#endif
+#if _USE_RESI_
+  m_ppcResiYuvBest[uiNextDepth]->copyToPartYuv( m_ppcResiYuvTemp[uiCurrDepth], uiPartUnitIdx );
+#endif
 }
 
 /** Function for filling the PCM buffer of a CU using its original sample array 

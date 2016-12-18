@@ -46,10 +46,11 @@
 #include "../TLibCommon/CommonDef.h"
 #include "../TLibCommon/TComDataCU.h"
 
-#include <vector>
-#include <algorithm>
+//#include <vector>
+//#include <algorithm>
+#include <stdint.h>
 
-using namespace std;
+//using namespace std;
 
 //! \ingroup TLibEncoder
 //! \{
@@ -64,6 +65,22 @@ const Int g_RCSmoothWindowSize = 40;
 const Int g_RCMaxPicListSize = 32;
 const Double g_RCWeightPicTargetBitInGOP    = 0.9;
 const Double g_RCWeightPicRargetBitInBuffer = 1.0 - g_RCWeightPicTargetBitInGOP;
+#if M0036_RC_IMPROVEMENT
+const Int g_RCIterationNum = 20;
+const Double g_RCWeightHistoryLambda = 0.5;
+const Double g_RCWeightCurrentLambda = 1.0 - g_RCWeightHistoryLambda;
+const Int g_RCLCUSmoothWindowSize = 4;
+const Double g_RCAlphaMinValue = 0.05;
+const Double g_RCAlphaMaxValue = 500.0;
+const Double g_RCBetaMinValue  = -3.0;
+const Double g_RCBetaMaxValue  = -0.1;
+#endif
+
+#if RATE_CONTROL_INTRA
+#define ALPHA     6.7542;
+#define BETA1     1.2517
+#define BETA2     1.7860
+#endif
 
 struct TRCLCU
 {
@@ -71,8 +88,16 @@ struct TRCLCU
   Int m_QP;     // QP of skip mode is set to g_RCInvalidQPValue
   Int m_targetBits;
   Double m_lambda;
+#if M0036_RC_IMPROVEMENT
+  Double m_bitWeight;
+#else
   Double m_MAD;
+#endif
   Int m_numberOfPixel;
+#if RATE_CONTROL_INTRA
+  Double m_costIntra;
+  Int m_targetBitsLeft;
+#endif
 };
 
 struct TRCParameter
@@ -88,14 +113,23 @@ public:
   ~TEncRCSeq();
 
 public:
+#if M0036_RC_IMPROVEMENT
+  Void create( Int totalFrames, Int targetBitrate, Int frameRate, Int GOPSize, Int picWidth, Int picHeight, Int LCUWidth, Int LCUHeight, Int numberOfLevel, Bool useLCUSeparateModel, Int adaptiveBit );
+#else
   Void create( Int totalFrames, Int targetBitrate, Int frameRate, Int GOPSize, Int picWidth, Int picHeight, Int LCUWidth, Int LCUHeight, Int numberOfLevel, Bool useLCUSeparateModel );
+#endif
   Void destroy();
   Void initBitsRatio( Int bitsRatio[] );
   Void initGOPID2Level( Int GOPID2Level[] );
   Void initPicPara( TRCParameter* picPara  = NULL );    // NULL to initial with default value
   Void initLCUPara( TRCParameter** LCUPara = NULL );    // NULL to initial with default value
   Void updateAfterPic ( Int bits );
+#if !RATE_CONTROL_INTRA
   Int  getRefineBitsForIntra( Int orgBits );
+#endif
+#if M0036_RC_IMPROVEMENT
+  Void setAllBitRatio( Double basicLambda, Double* equaCoeffA, Double* equaCoeffB );
+#endif
 
 public:
   Int  getTotalFrames()                 { return m_totalFrames; }
@@ -133,6 +167,12 @@ public:
   Double getAlphaUpdate()               { return m_alphaUpdate; }
   Double getBetaUpdate()                { return m_betaUpdate; }
 
+#if M0036_RC_IMPROVEMENT
+  Int    getAdaptiveBits()              { return m_adaptiveBit;  }
+  Double getLastLambda()                { return m_lastLambda;   }
+  Void   setLastLambda( Double lamdba ) { m_lastLambda = lamdba; }
+#endif
+
 private:
   Int m_totalFrames;
   Int m_targetRate;
@@ -159,6 +199,11 @@ private:
   Double m_alphaUpdate;
   Double m_betaUpdate;
   Bool m_useLCUSeparateModel;
+
+#if M0036_RC_IMPROVEMENT
+  Int m_adaptiveBit;
+  Double m_lastLambda;
+#endif
 };
 
 class TEncRCGOP
@@ -174,6 +219,10 @@ public:
 
 private:
   Int  xEstGOPTargetBits( TEncRCSeq* encRCSeq, Int GOPSize );
+#if M0036_RC_IMPROVEMENT
+  Void   xCalEquaCoeff( TEncRCSeq* encRCSeq, Double* lambdaRatio, Double* equaCoeffA, Double* equaCoeffB, Int GOPSize );
+  Double xSolveEqua( Double targetBpp, Double* equaCoeffA, Double* equaCoeffB, Int GOPSize );
+#endif
 
 public:
   TEncRCSeq* getEncRCSeq()        { return m_encRCSeq; }
@@ -202,17 +251,40 @@ public:
   Void create( TEncRCSeq* encRCSeq, TEncRCGOP* encRCGOP, Int frameLevel, list<TEncRCPic*>& listPreviousPictures );
   Void destroy();
 
+#if !RATE_CONTROL_INTRA
   Double estimatePicLambda( list<TEncRCPic*>& listPreviousPictures );
+#endif
   Int    estimatePicQP    ( Double lambda, list<TEncRCPic*>& listPreviousPictures );
+#if RATE_CONTROL_INTRA
+  Int    getRefineBitsForIntra(Int orgBits);
+  Double calculateLambdaIntra(double alpha, double beta, double MADPerPixel, double bitsPerPixel);
+  Double estimatePicLambda( list<TEncRCPic*>& listPreviousPictures, SliceType eSliceType);
+
+  Void   updateAlphaBetaIntra(double *alpha, double *beta);
+
+  Double getLCUTargetBpp(SliceType eSliceType);
+  Double getLCUEstLambdaAndQP(Double bpp, Int clipPicQP, Int *estQP);
+#else
   Double getLCUTargetBpp();
+#endif
   Double getLCUEstLambda( Double bpp );
   Int    getLCUEstQP( Double lambda, Int clipPicQP );
 
   Void updateAfterLCU( Int LCUIdx, Int bits, Int QP, Double lambda, Bool updateLCUParameter = true );
+#if M0036_RC_IMPROVEMENT
+#if RATE_CONTROL_INTRA
+  Void updateAfterPicture( Int actualHeaderBits, Int actualTotalBits, Double averageQP, Double averageLambda, SliceType eSliceType);
+#else
+  Void updateAfterPicture( Int actualHeaderBits, Int actualTotalBits, Double averageQP, Double averageLambda );
+#endif
+#else
   Void updateAfterPicture( Int actualHeaderBits, Int actualTotalBits, Double averageQP, Double averageLambda, Double effectivePercentage );
+#endif
 
   Void addToPictureLsit( list<TEncRCPic*>& listPreviousPictures );
+#if !M0036_RC_IMPROVEMENT
   Double getEffectivePercentage();
+#endif
   Double calAverageQP();
   Double calAverageLambda();
 
@@ -228,7 +300,9 @@ public:
   Int  getNumberOfPixel()                                 { return m_numberOfPixel; }
   Int  getNumberOfLCU()                                   { return m_numberOfLCU; }
   Int  getTargetBits()                                    { return m_targetBits; }
+#if !RATE_CONTROL_INTRA 
   Void setTargetBits( Int bits )                          { m_targetBits = bits; }
+#endif
   Int  getEstHeaderBits()                                 { return m_estHeaderBits; }
   Int  getLCULeft()                                       { return m_LCULeft; }
   Int  getBitsLeft()                                      { return m_bitsLeft; }
@@ -238,8 +312,16 @@ public:
   TRCLCU* getLCU()                                        { return m_LCUs; }
   TRCLCU& getLCU( Int LCUIdx )                            { return m_LCUs[LCUIdx]; }
   Int  getPicActualHeaderBits()                           { return m_picActualHeaderBits; }
+#if !M0036_RC_IMPROVEMENT
   Double getTotalMAD()                                    { return m_totalMAD; }
   Void   setTotalMAD( Double MAD )                        { m_totalMAD = MAD; }
+#endif
+#if RATE_CONTROL_INTRA
+  Void setTargetBits( Int bits )                          { m_targetBits = bits; m_bitsLeft = bits;}
+  Void setTotalIntraCost(Double cost)                     { m_totalCostIntra = cost; }
+  Void getLCUInitTargetBits();
+#endif
+
   Int  getPicActualBits()                                 { return m_picActualBits; }
   Int  getPicActualQP()                                   { return m_picQP; }
   Double getPicActualLambda()                             { return m_picLambda; }
@@ -266,11 +348,19 @@ private:
 
   TRCLCU* m_LCUs;
   Int m_picActualHeaderBits;    // only SH and potential APS
+#if !M0036_RC_IMPROVEMENT
   Double m_totalMAD;
+#endif
+#if RATE_CONTROL_INTRA
+  Double m_totalCostIntra; 
+  Double m_remainingCostIntra;
+#endif
   Int m_picActualBits;          // the whole picture, including header
   Int m_picQP;                  // in integer form
   Double m_picLambda;
+#if !M0036_RC_IMPROVEMENT
   TEncRCPic* m_lastPicture;
+#endif
 };
 
 class TEncRateCtrl
@@ -280,7 +370,11 @@ public:
   ~TEncRateCtrl();
 
 public:
+#if M0036_RC_IMPROVEMENT
+  Void init( Int totalFrames, Int targetBitrate, Int frameRate, Int GOPSize, Int picWidth, Int picHeight, Int LCUWidth, Int LCUHeight, Int keepHierBits, Bool useLCUSeparateModel, GOPEntry GOPList[MAX_GOP] );
+#else
   Void init( Int totalFrames, Int targetBitrate, Int frameRate, Int GOPSize, Int picWidth, Int picHeight, Int LCUWidth, Int LCUHeight, Bool keepHierBits, Bool useLCUSeparateModel, GOPEntry GOPList[MAX_GOP] );
+#endif
   Void destroy();
   Void initRCPic( Int frameLevel );
   Void initRCGOP( Int numberOfPictures );
@@ -301,7 +395,239 @@ private:
   list<TEncRCPic*> m_listRCPictures;
   Int        m_RCQP;
 };
+#elif defined(X264_RATECONTROL_2006)
 
+#include "../TLibEncoder/TEncCfg.h"
+
+#define RC_P_WINDOW 8
+#define GOPSIZE 3 //gopsize+1
+#define _USE_BITS_ADJUST_ 0
+#define _USE_IFRAME_RESTRICT_ 1
+#define _USE_PFRAME_FROM_IFRAME_ 1
+#define _USE_FIRST_I_REDUCTION_ 1
+#define _USE_I_FRAME_REDUCTION 0
+#define _USE_LEVEL_P_ 1
+#define _USE_BITRATE_DETECT_ 1
+#define _USE_I_REDUCE_QPSTEP_ 0
+#define _USE_SATD_BASED_LCU_ 1
+#define _USE_FRAMELEVEL_ 1
+#define _USE_LCU_ABR_ 0
+
+
+#define X264_RC_CQP                  0 //Constant quantizer, the QPs are simply based on whether the frame is P,I or B frame.
+#define X264_RC_CRF                  1 //Constant rate factor, one pass mode that is optimal if the user doesn't desire a specific bitrate,but specify quality instead.
+#define X264_RC_ABR                  2 //Average bitrate, One pass scheme
+
+
+typedef struct
+{
+	/* Video Properties */
+	int         i_width;
+	int         i_height;
+
+	int         i_fps_num;
+
+	int         i_bframe;   /* how many b-frame between 2 references pictures */
+
+	/* Rate control parameters */
+	struct
+	{
+        int         i_rc_method;    /* X264_RC_* */
+		int         i_qp_constant;  /* 0-51 */
+		int         i_qp_min;       /* min allowed QP value */
+		int         i_qp_max;       /* max allowed QP value */
+		int         i_qp_step;      /* max QP step between frames */
+
+		int         b_cbr;          /* use bitrate instead of CQP */
+		int b_lcurc;
+		int b_adap_bits;
+		int         i_bitrate;
+		int         i_rf_constant;  /* 1pass VBR, nominal QP */
+		float       f_rate_tolerance;
+		int         i_vbv_max_bitrate;
+		int         i_vbv_buffer_size;
+		float       f_vbv_buffer_init;
+		float       f_ip_factor;
+		float       f_pb_factor;
+		float       f_decay;
+
+		/* 2pass params (same as ffmpeg ones) */
+		float       f_qcompress;    /* 0.0 => cbr, 1.0 => constant qp */
+
+	} rc;
+	int frame_to_be_encoded;
+	int gopsize;
+	int key_int;
+
+	int m_numberOfLCU;
+	int b_variable_qp;
+	int picWidthInBU;
+	int picHeightInBU;
+} x264_param_t;
+
+
+typedef struct
+{
+	double coeff_min;
+	double coeff;
+	double count;
+	double decay;
+	int offset;
+} predictor_t;
+
+struct x264_ratecontrol_t
+{
+	/* constants */
+	int b_abr;
+	int b_2pass;
+	int b_vbv;
+	double fps;
+	double bitrate;
+	double rate_tolerance;
+	int qp_constant[3];
+	int gop_id;
+	int tbits;
+	double wanted_bits;
+	int skip_lcu_num;
+	int start_flag;
+
+	int qp;                     /* qp for current frame */
+	double qpm;                    /* qp for current macroblock */
+	double qpa;                  /* average of macroblocks' qp */
+	float qpa_prev;
+	float qp_novbv;
+
+	int slice_type;
+	int qp_offset;
+	double qp_factor;
+	int p_after_i;
+
+	/* VBV stuff */
+    double buffer_size;
+    double buffer_fill;         /* planned buffer, if all in-progress frames hit their bit budget */
+    double buffer_rate;         /* # of bits added to buffer_fill after each frame */
+    double vbv_max_rate;        /* # of bits added to buffer_fill per second */
+
+	predictor_t *pred;        /* predict frame size from satd */
+	predictor_t preds[GOPSIZE];//max gop size is 64
+	int last_satd_for[3];
+	int bits_for[3];
+	int ftype;
+
+	/* ABR stuff */
+	int    last_satd;
+	double last_rceq;
+	double cplxr_sum;           /* sum of bits*qscale/rceq */
+	double expected_bits_sum;   /* sum of qscale2bits after rceq, ratefactor, and overflow */
+	double wanted_bits_window;  /* target bitrate * window */
+	double cbr_decay;
+	double short_term_cplxsum;
+	double short_term_cplxcount;
+	double rate_factor_constant;
+	double ip_offset;
+	double pb_offset;
+	double ratefactor;
+	double *cplxr_sum_for_level;
+	double *wanted_bits_window_for_level;
+	double *bits_for_gopid;
+	double bits_for_frame;
+	double bits_for_I;
+	double *realbits_for_level;
+	double *wanted_bits_for_level;
+	int *bitsRatio;
+	int bitsRatio_sum;
+	int bits_left;
+
+
+	double wanted_bits_window_lcu;
+	double cplxr_sum_lcu;
+	double wanted_bits_lcu;
+	double bitcost_lcu;
+	int *lcu_satd;
+	int *lcu_bits;
+	double last_rceq_lcu;
+	double last_qscale_lcu;
+	double lcu_satd_avg;
+	double lcu_satd_sum;
+	double lcu_idx;
+	int lcu_num;
+	int *GOPID2Level;
+	double *last_qscale_for_level;
+	int FrameLevel;
+	int Prev_FrameLevel;
+	int Last_FrameLevel;
+	double *lstep_for_level;
+	double *lstep_for_level_inv;
+	int numberOfLevel;
+
+	double last_qscale;
+//	double last_qscale2;
+	double last_qscale_for[8];  /* last qscale for a specific pict type, used for max_diff & ipb factor stuff  */
+	double last_qscale_I;
+	int last_pict_type;
+	double accum_p_qp;          /* for determining I-frame quant */
+	double accum_p_norm;
+	double last_accum_p_norm;
+	double lmin[3];             /* min qscale by frame type */
+	double lmax[3];
+	double lmin_I;
+	double lmax_I;
+	double lstep[6];               /* max change (multiply) in qscale per frame */
+	double brate;
+
+	/* MBRC stuff */
+    double frame_size_planned;
+	int first_row, last_row;    /* region of the frame to be encoded by this thread */
+	predictor_t *row_pred;//[2];
+	predictor_t row_preds[GOPSIZE];/*max gop size is 64*///[3];//[2];
+	int bframes;                /* # consecutive B-frames before this P-frame */
+	int single_frame_vbv;
+
+//add
+	int bitcost;
+	int bitcost_last;
+	int i_frame;
+	int i_mb_x;
+	int i_mb_y;
+	int i_type_last;
+	int     i_slice_count[3];
+	int     *i_row_satd;
+	int i_row_satd_tmp;
+	int     *i_row_bits;
+	float *i_row_qp;
+	int     *i_row_satd_last;
+#if !_USE_BITS_ADJUST_
+	int     *i_row_bits_last;
+	float *i_row_qp_last;
+#else
+	int     *i_row_bits_last[GOPSIZE];
+	float *i_row_qp_last[GOPSIZE];
+
+#endif
+
+
+	double framesad_Pavg;
+	double sad_Ilast;
+	double sad_Plast;
+	double sad_Pfrm[RC_P_WINDOW];
+	int i_statvalid_Pfrm;
+	int i_index_Pfrm;
+	int i_numvalid_Pfrm;
+	double std_val;
+
+};
+
+int x264_ratecontrol_new( x264_ratecontrol_t* rc, x264_param_t* pParam, int lcuwidth, int lcuheight,GOPEntry  *GOPList);
+void x264_ratecontrol_delete( x264_ratecontrol_t* rc,x264_param_t* pParam );
+void x264_ratecontrol_start( x264_ratecontrol_t *rc, x264_param_t* pParam, int i_slice_type, int SumHad);
+void x264_ratecontrol_end( x264_ratecontrol_t *rc, x264_param_t* pParam,int bits, int cost);
+int x264_ratecontrol_qp( x264_ratecontrol_t *rc );
+void x264_ratecontrol_mb( x264_ratecontrol_t *rc, x264_param_t* pParam, int bits, int cost );
+void x264_ratecontrol_lcu_abr_start( x264_ratecontrol_t *rc, x264_param_t* pParam,int cost );
+void x264_ratecontrol_lcu_abr_end( x264_ratecontrol_t *rc, x264_param_t* pParam, int bits);
+void x264_ratecontrol_lcu_start( x264_ratecontrol_t *rc, x264_param_t* pParam);
+void x264_ratecontrol_lcu_end( x264_ratecontrol_t *rc, x264_param_t* pParam, int bits, int cost );
+void  x264_param_default( x264_param_t *param );
 #else
 
 // ====================================================================================================================

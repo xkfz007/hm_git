@@ -126,6 +126,7 @@ Void TAppDecTop::decode()
 
     // call actual decoding function
     Bool bNewPicture = false;
+    Bool bPicComplete = false;
     if (nalUnit.empty())
     {
       /* this can happen if the following occur:
@@ -152,7 +153,11 @@ Void TAppDecTop::decode()
       }
       else
       {
-        bNewPicture = m_cTDecTop.decode(nalu, m_iSkipFrame, m_iPOCLastDisplay);
+        bNewPicture = m_cTDecTop.decode(nalu, m_iSkipFrame, m_iPOCLastDisplay, bPicComplete);
+        if(bPicComplete)
+        {
+          m_cTDecTop.executeLoopFilters(poc, pcListPic);
+        }
         if (bNewPicture)
         {
           bitstreamFile.clear();
@@ -166,11 +171,6 @@ Void TAppDecTop::decode()
         bPreviousPictureDecoded = true; 
       }
     }
-    if (bNewPicture || !bitstreamFile)
-    {
-      m_cTDecTop.executeLoopFilters(poc, pcListPic);
-    }
-
     if( pcListPic )
     {
       if ( m_pchReconFile && !recon_opened )
@@ -182,11 +182,11 @@ Void TAppDecTop::decode()
         recon_opened = true;
       }
       if ( bNewPicture && 
-           (   nalu.m_nalUnitType == NAL_UNIT_CODED_SLICE_IDR
+           (   nalu.m_nalUnitType == NAL_UNIT_CODED_SLICE_IDR_W_RADL
             || nalu.m_nalUnitType == NAL_UNIT_CODED_SLICE_IDR_N_LP
             || nalu.m_nalUnitType == NAL_UNIT_CODED_SLICE_BLA_N_LP
-            || nalu.m_nalUnitType == NAL_UNIT_CODED_SLICE_BLANT
-            || nalu.m_nalUnitType == NAL_UNIT_CODED_SLICE_BLA ) )
+            || nalu.m_nalUnitType == NAL_UNIT_CODED_SLICE_BLA_W_RADL
+            || nalu.m_nalUnitType == NAL_UNIT_CODED_SLICE_BLA_W_LP ) )
       {
         xFlushOutput( pcListPic );
       }
