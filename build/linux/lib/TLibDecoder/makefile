@@ -3,7 +3,11 @@ CONFIG 			= LIBRARY
 
 # set pathes to the correct directories
 SRC_DIR			= ../../../../source/Lib/TLibDecoder
+<<<<<<< HEAD
 INC_DIR			= ../../../../source/Lib
+=======
+INC_DIR			= ../../../../source/Lib/TLibDecoder
+>>>>>>> upstream/master
 LIB_DIR			= ../../../../lib
 BIN_DIR			= ../../../../bin
 
@@ -16,6 +20,7 @@ SRC_DIR4		=
 USER_INC_DIRS	= -I$(SRC_DIR)
 USER_LIB_DIRS	=
 
+<<<<<<< HEAD
 ifeq ($(HIGHBITDEPTH), 1)
 HBD=HighBitDepth
 else
@@ -27,6 +32,13 @@ OBJ_DIR			= ./objects$(HBD)
 
 # the library name
 PRJ_NAME	 	= TLibDecoder$(HBD)
+=======
+# intermediate directory for object files
+OBJ_DIR			= ./objects
+
+# the library name
+PRJ_NAME	 	= TLibDecoder
+>>>>>>> upstream/master
 
 # version information
 MAJOR_VER		= 0
@@ -38,11 +50,20 @@ DEFS			= -DMSYS_LINUX
 
 # set objects
 OBJS          	= \
+<<<<<<< HEAD
 				$(OBJ_DIR)/AnnexBread.o \
 				$(OBJ_DIR)/NALread.o \
 				$(OBJ_DIR)/SEIread.o \
 				$(OBJ_DIR)/SyntaxElementParser.o \
 				$(OBJ_DIR)/TDecBinCoderCABAC.o \
+=======
+				$(OBJ_DIR)/TDecBinCoderCABAC.o \
+				$(OBJ_DIR)/TDecBinCoderMultiCABAC.o \
+				$(OBJ_DIR)/TDecBinCoderPIPE.o \
+				$(OBJ_DIR)/TDecBinCoderMultiPIPE.o \
+				$(OBJ_DIR)/TDecBinCoderV2VwLB.o \
+				$(OBJ_DIR)/TDecPIPETables.o \
+>>>>>>> upstream/master
 				$(OBJ_DIR)/TDecCAVLC.o \
 				$(OBJ_DIR)/TDecCu.o \
 				$(OBJ_DIR)/TDecEntropy.o \
@@ -50,6 +71,10 @@ OBJS          	= \
 				$(OBJ_DIR)/TDecSbac.o \
 				$(OBJ_DIR)/TDecSlice.o \
 				$(OBJ_DIR)/TDecTop.o \
+<<<<<<< HEAD
+=======
+				$(OBJ_DIR)/TDecV2VTrees.o \
+>>>>>>> upstream/master
 
 LIBS				= -lpthread
 

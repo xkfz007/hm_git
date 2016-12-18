@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
+<<<<<<< HEAD
 	Version="9,00"
+=======
+	Version="9.00"
+>>>>>>> upstream/master
 	Name="TAppEncoder"
 	ProjectGUID="{D759E4E1-D33A-4483-B57B-0FD248E022FE}"
 	RootNamespace="TAppEncoder"
@@ -44,7 +48,10 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
+<<<<<<< HEAD
 				AdditionalIncludeDirectories="$(SolutionDir)\..\source\Lib\;$(SolutionDir)\..\compat\msvc"
+=======
+>>>>>>> upstream/master
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -91,11 +98,19 @@
 			/>
 		</Configuration>
 		<Configuration
+<<<<<<< HEAD
 			Name="Debug|x64"
+=======
+			Name="Release|Win32"
+>>>>>>> upstream/master
 			OutputDirectory="$(SolutionDir)\..\bin\vc9\$(PlatformName)\$(ConfigurationName)\"
 			IntermediateDirectory="$(SolutionDir)\vc9\$(PlatformName)\$(ConfigurationName)\$(RootNamespace)"
 			ConfigurationType="1"
 			CharacterSet="2"
+<<<<<<< HEAD
+=======
+			WholeProgramOptimization="1"
+>>>>>>> upstream/master
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -111,6 +126,7 @@
 			/>
 			<Tool
 				Name="VCMIDLTool"
+<<<<<<< HEAD
 				TargetEnvironment="3"
 			/>
 			<Tool
@@ -121,6 +137,19 @@
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
+=======
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				Optimization="2"
+				InlineFunctionExpansion="2"
+				EnableIntrinsicFunctions="false"
+				FavorSizeOrSpeed="1"
+				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS"
+				StringPooling="true"
+				RuntimeLibrary="0"
+				EnableFunctionLevelLinking="true"
+>>>>>>> upstream/master
 				WarningLevel="3"
 				DebugInformationFormat="3"
 			/>
@@ -135,10 +164,17 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+<<<<<<< HEAD
 				LinkIncremental="2"
 				GenerateDebugInformation="true"
 				SubSystem="1"
 				TargetMachine="17"
+=======
+				LinkIncremental="1"
+				GenerateDebugInformation="true"
+				SubSystem="1"
+				TargetMachine="1"
+>>>>>>> upstream/master
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -163,12 +199,19 @@
 			/>
 		</Configuration>
 		<Configuration
+<<<<<<< HEAD
 			Name="Release|Win32"
+=======
+			Name="Debug|x64"
+>>>>>>> upstream/master
 			OutputDirectory="$(SolutionDir)\..\bin\vc9\$(PlatformName)\$(ConfigurationName)\"
 			IntermediateDirectory="$(SolutionDir)\vc9\$(PlatformName)\$(ConfigurationName)\$(RootNamespace)"
 			ConfigurationType="1"
 			CharacterSet="2"
+<<<<<<< HEAD
 			WholeProgramOptimization="1"
+=======
+>>>>>>> upstream/master
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -184,6 +227,7 @@
 			/>
 			<Tool
 				Name="VCMIDLTool"
+<<<<<<< HEAD
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
@@ -196,6 +240,17 @@
 				StringPooling="true"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
+=======
+				TargetEnvironment="3"
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				Optimization="0"
+				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS"
+				MinimalRebuild="true"
+				BasicRuntimeChecks="3"
+				RuntimeLibrary="1"
+>>>>>>> upstream/master
 				WarningLevel="3"
 				DebugInformationFormat="3"
 			/>
@@ -210,10 +265,17 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+<<<<<<< HEAD
 				LinkIncremental="1"
 				GenerateDebugInformation="true"
 				SubSystem="1"
 				TargetMachine="1"
+=======
+				LinkIncremental="2"
+				GenerateDebugInformation="true"
+				SubSystem="1"
+				TargetMachine="17"
+>>>>>>> upstream/master
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -267,8 +329,12 @@
 				InlineFunctionExpansion="2"
 				EnableIntrinsicFunctions="false"
 				FavorSizeOrSpeed="1"
+<<<<<<< HEAD
 				AdditionalIncludeDirectories="$(SolutionDir)\..\source\Lib\;$(SolutionDir)\..\compat\msvc"
 				PreprocessorDefinitions="WIN32;_CONSOLE;_CRT_SECURE_NO_WARNINGS"
+=======
+				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS"
+>>>>>>> upstream/master
 				StringPooling="true"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"

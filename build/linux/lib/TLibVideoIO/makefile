@@ -3,7 +3,11 @@ CONFIG 			= LIBRARY
 
 # set pathes to the correct directories
 SRC_DIR			= ../../../../source/Lib/TLibVideoIO
+<<<<<<< HEAD
 INC_DIR			= ../../../../source/Lib
+=======
+INC_DIR			= ../../../../source/Lib/TLibVideoIO
+>>>>>>> upstream/master
 LIB_DIR			= ../../../../lib
 BIN_DIR			= ../../../../bin
 
@@ -16,6 +20,7 @@ SRC_DIR4		=
 USER_INC_DIRS	= -I$(SRC_DIR)
 USER_LIB_DIRS	=
 
+<<<<<<< HEAD
 ifeq ($(HIGHBITDEPTH), 1)
 HBD=HighBitDepth
 else
@@ -27,6 +32,13 @@ OBJ_DIR			= ./objects$(HBD)
 
 # the library name
 PRJ_NAME	 	= TLibVideoIO$(HBD)
+=======
+# intermediate directory for object files
+OBJ_DIR			= ./objects
+
+# the library name
+PRJ_NAME	 	= TLibVideoIO
+>>>>>>> upstream/master
 
 # version information
 MAJOR_VER		= 0
@@ -38,6 +50,10 @@ DEFS			= -DMSYS_LINUX -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DMSYS_UNIX_L
 
 # set objects
 OBJS          	= \
+<<<<<<< HEAD
+=======
+			$(OBJ_DIR)/TVideoIOBits.o \
+>>>>>>> upstream/master
 			$(OBJ_DIR)/TVideoIOYuv.o \
 						
 
